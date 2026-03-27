@@ -16,7 +16,7 @@ import { COLORS } from '@/constants/colors';
 import { AnimatedPressable } from '@/components/AnimatedPressable';
 import { Car, User, ChevronDown, Check } from 'lucide-react-native';
 
-const LOGO = require('@/assets/images/253887a8-e31b-40cd-9be6-6c2fb8849bc4.png');
+const LOGO = require('@/assets/images/a11f821b-ef35-45fe-8a5e-5dcefb8655ce.png');
 
 type UserType = 'driver' | 'rider';
 

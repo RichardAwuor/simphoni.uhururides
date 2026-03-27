@@ -16,14 +16,109 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useProfile } from '@/contexts/ProfileContext';
 import { COLORS } from '@/constants/colors';
 import { AnimatedPressable } from '@/components/AnimatedPressable';
-import { Mail, CheckCircle, XCircle, Car, User } from 'lucide-react-native';
+import {
+  Mail,
+  CheckCircle,
+  XCircle,
+  Car,
+  User,
+  Phone,
+  FileText,
+  CreditCard,
+} from 'lucide-react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { apiPost } from '@/utils/api';
 
 const LOGO = require('@/assets/images/a11f821b-ef35-45fe-8a5e-5dcefb8655ce.png');
 
+function InputField({
+  label,
+  value,
+  onChangeText,
+  placeholder,
+  error,
+  onBlur,
+  keyboardType,
+  autoCapitalize,
+  icon,
+  rightIcon,
+}: {
+  label: string;
+  value: string;
+  onChangeText: (v: string) => void;
+  placeholder?: string;
+  error?: string;
+  onBlur?: () => void;
+  keyboardType?: any;
+  autoCapitalize?: any;
+  icon: React.ReactNode;
+  rightIcon?: React.ReactNode;
+}) {
+  const borderColor = error ? COLORS.danger : COLORS.border;
+
+  return (
+    <View style={{ marginBottom: 16 }}>
+      <Text
+        style={{
+          fontSize: 13,
+          fontWeight: '600',
+          color: COLORS.textSecondary,
+          fontFamily: 'Nunito_600SemiBold',
+          marginBottom: 6,
+        }}
+      >
+        {label}
+      </Text>
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          backgroundColor: COLORS.surface,
+          borderRadius: 12,
+          borderWidth: 1.5,
+          borderColor,
+          paddingHorizontal: 14,
+          height: 52,
+        }}
+      >
+        {icon}
+        <TextInput
+          value={value}
+          onChangeText={onChangeText}
+          onBlur={onBlur}
+          placeholder={placeholder}
+          placeholderTextColor={COLORS.textTertiary}
+          keyboardType={keyboardType}
+          autoCapitalize={autoCapitalize ?? 'words'}
+          autoCorrect={false}
+          style={{
+            flex: 1,
+            marginLeft: 10,
+            fontSize: 15,
+            color: COLORS.text,
+            fontFamily: 'Nunito_400Regular',
+          }}
+        />
+        {rightIcon ?? null}
+      </View>
+      {error ? (
+        <Text
+          style={{
+            fontSize: 12,
+            color: COLORS.danger,
+            fontFamily: 'Nunito_400Regular',
+            marginTop: 4,
+          }}
+        >
+          {error}
+        </Text>
+      ) : null}
+    </View>
+  );
+}
+
 export default function AuthScreen() {
-  const { signUpWithEmail, signInWithApple, signInWithGoogle } = useAuth();
+  const { signUpWithEmail } = useAuth();
   const { refreshProfile } = useProfile();
   const insets = useSafeAreaInsets();
 
@@ -37,12 +132,20 @@ export default function AuthScreen() {
   const language = params.language ?? null;
   const userType = (params.userType as 'driver' | 'rider') ?? null;
 
+  // Common fields
+  const [fullName, setFullName] = useState('');
+  const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
   const [confirmEmail, setConfirmEmail] = useState('');
   const [confirmTouched, setConfirmTouched] = useState(false);
+
+  // Driver-only fields
+  const [vehicleMakeModel, setVehicleMakeModel] = useState('');
+  const [licensePlate, setLicensePlate] = useState('');
+  const [nationalId, setNationalId] = useState('');
+
   const [emailError, setEmailError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [socialLoading, setSocialLoading] = useState<'apple' | 'google' | null>(null);
   const [error, setError] = useState('');
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -55,6 +158,12 @@ export default function AuthScreen() {
     ]).start();
   }, []);
 
+  const isDriver = userType === 'driver';
+  const isRider = userType === 'rider';
+
+  const userTypeLabel = isDriver ? 'Driver' : isRider ? 'Rider' : null;
+  const userTypeDesc = isDriver ? 'I give rides' : isRider ? 'I need rides' : null;
+
   const validateEmail = () => {
     if (!email) { setEmailError('Email is required'); return false; }
     if (!/\S+@\S+\.\S+/.test(email)) { setEmailError('Enter a valid email address'); return false; }
@@ -64,35 +173,70 @@ export default function AuthScreen() {
 
   const emailsMatch = email.length > 0 && confirmEmail.length > 0 && email === confirmEmail;
   const emailsMismatch = confirmTouched && confirmEmail.length > 0 && email !== confirmEmail;
-  const isSignUpDisabled = loading || !emailsMatch;
+  const showConfirmIcon = confirmTouched && confirmEmail.length > 0;
+  const confirmIconColor = emailsMatch ? '#22c55e' : COLORS.danger;
+  const confirmBorderColor = emailsMismatch ? COLORS.danger : emailsMatch ? '#22c55e' : COLORS.border;
 
-  const saveOnboardingData = async () => {
-    if (!country && !language && !userType) return;
-    try {
-      console.log('[AuthScreen] Saving onboarding profile data:', { country, language, userType });
-      await apiPost('/api/profiles/me', {
-        country: country?.toLowerCase(),
-        language: language?.toLowerCase(),
-        user_type: userType,
-      });
-      await refreshProfile();
-    } catch (e: any) {
-      // Profile API may not exist yet — store is best-effort
-      console.warn('[AuthScreen] Profile save failed (non-fatal):', e?.message);
+  const driverFieldsFilled = !isDriver || (
+    vehicleMakeModel.trim().length > 0 &&
+    licensePlate.trim().length > 0 &&
+    nationalId.trim().length > 0
+  );
+
+  const isFormValid =
+    fullName.trim().length > 0 &&
+    phone.trim().length > 0 &&
+    emailsMatch &&
+    driverFieldsFilled;
+
+  const isSubmitDisabled = loading || !isFormValid;
+
+  const saveProfileData = async () => {
+    const nameParts = fullName.trim().split(' ');
+    const firstName = nameParts[0] ?? '';
+    const lastName = nameParts.slice(1).join(' ') || firstName;
+
+    const basePayload: Record<string, any> = {
+      user_type: userType ?? 'rider',
+      first_name: firstName,
+      last_name: lastName,
+      mobile_number: phone.trim(),
+      country: country?.toLowerCase() ?? 'kenya',
+      language: language?.toLowerCase() ?? 'english',
+    };
+
+    console.log('[AuthScreen] Saving profile data:', basePayload);
+    await apiPost('/api/profiles/me', basePayload);
+
+    if (isDriver) {
+      const driverPayload = {
+        car_make: vehicleMakeModel.trim(),
+        car_registration: licensePlate.trim().toUpperCase(),
+        national_id: nationalId.trim(),
+      };
+      console.log('[AuthScreen] Saving driver details:', driverPayload);
+      await apiPost('/api/driver/details', driverPayload);
     }
+
+    await refreshProfile();
   };
 
-  const handleEmailAuth = async () => {
+  const handleCreateAccount = async () => {
+    console.log('[AuthScreen] Create Account pressed — name:', fullName, 'phone:', phone, 'email:', email, 'userType:', userType, 'country:', country);
     const emailOk = validateEmail();
     if (!emailOk || !emailsMatch) return;
 
     setLoading(true);
     setError('');
-    console.log('[AuthScreen] Sign up pressed — email:', email, 'country:', country, 'language:', language, 'userType:', userType);
     try {
-      await signUpWithEmail(email, email);
+      await signUpWithEmail(email, email, fullName.trim());
       console.log('[AuthScreen] Sign up successful');
-      await saveOnboardingData();
+      try {
+        await saveProfileData();
+        console.log('[AuthScreen] Profile saved successfully');
+      } catch (profileErr: any) {
+        console.warn('[AuthScreen] Profile save failed (non-fatal):', profileErr?.message);
+      }
       console.log('[AuthScreen] Navigating to /(tabs)');
       router.replace('/(tabs)');
     } catch (e: any) {
@@ -102,53 +246,6 @@ export default function AuthScreen() {
       setLoading(false);
     }
   };
-
-  const handleApple = async () => {
-    setSocialLoading('apple');
-    setError('');
-    console.log('[AuthScreen] Apple sign in pressed');
-    try {
-      await signInWithApple();
-      await saveOnboardingData();
-      console.log('[AuthScreen] Apple sign in successful, navigating to /(tabs)');
-      router.replace('/(tabs)');
-    } catch (e: any) {
-      console.error('[AuthScreen] Apple auth error:', e);
-      if (!e?.message?.includes('cancel')) {
-        setError(e?.message || 'Apple sign in failed.');
-      }
-    } finally {
-      setSocialLoading(null);
-    }
-  };
-
-  const handleGoogle = async () => {
-    setSocialLoading('google');
-    setError('');
-    console.log('[AuthScreen] Google sign in pressed');
-    try {
-      await signInWithGoogle();
-      await saveOnboardingData();
-      console.log('[AuthScreen] Google sign in successful, navigating to /(tabs)');
-      router.replace('/(tabs)');
-    } catch (e: any) {
-      console.error('[AuthScreen] Google auth error:', e);
-      setError(e?.message || 'Google sign in failed.');
-    } finally {
-      setSocialLoading(null);
-    }
-  };
-
-  const confirmBorderColor = emailsMismatch ? COLORS.danger : emailsMatch ? '#22c55e' : COLORS.border;
-  const confirmIconColor = emailsMatch ? '#22c55e' : '#E63946';
-  const showConfirmIcon = confirmTouched && confirmEmail.length > 0;
-
-  const isDriver = userType === 'driver';
-  const isRider = userType === 'rider';
-  const hasUserType = isDriver || isRider;
-
-  const userTypeLabel = isDriver ? 'Driver' : isRider ? 'Rider' : null;
-  const userTypeDesc = isDriver ? 'I give rides' : isRider ? 'I need rides' : null;
 
   return (
     <View style={{ flex: 1, backgroundColor: '#1A1A1A' }}>
@@ -215,8 +312,8 @@ export default function AuthScreen() {
               paddingTop: 28,
             }}
           >
-            {/* User type context badge */}
-            {hasUserType ? (
+            {/* User type card */}
+            {userTypeLabel ? (
               <View
                 style={{
                   flexDirection: 'row',
@@ -233,9 +330,9 @@ export default function AuthScreen() {
               >
                 <View
                   style={{
-                    width: 44,
-                    height: 44,
-                    borderRadius: 22,
+                    width: 48,
+                    height: 48,
+                    borderRadius: 24,
                     backgroundColor: COLORS.primary,
                     alignItems: 'center',
                     justifyContent: 'center',
@@ -269,13 +366,20 @@ export default function AuthScreen() {
                   </Text>
                 </View>
                 {country ? (
-                  <Text style={{ fontSize: 13, color: COLORS.textTertiary, fontFamily: 'Nunito_400Regular' }}>
+                  <Text
+                    style={{
+                      fontSize: 13,
+                      color: COLORS.textTertiary,
+                      fontFamily: 'Nunito_400Regular',
+                    }}
+                  >
                     {country}
                   </Text>
                 ) : null}
               </View>
             ) : null}
 
+            {/* Heading */}
             <Text
               style={{
                 fontSize: 22,
@@ -287,6 +391,34 @@ export default function AuthScreen() {
             >
               Create your account
             </Text>
+
+            {/* Full Name */}
+            <InputField
+              label="Full Name"
+              value={fullName}
+              onChangeText={(v) => {
+                console.log('[AuthScreen] Full name changed');
+                setFullName(v);
+              }}
+              placeholder="e.g. Amara Osei"
+              keyboardType="default"
+              autoCapitalize="words"
+              icon={<User size={18} color={COLORS.textTertiary} />}
+            />
+
+            {/* Phone Number */}
+            <InputField
+              label="Phone Number"
+              value={phone}
+              onChangeText={(v) => {
+                console.log('[AuthScreen] Phone number changed');
+                setPhone(v);
+              }}
+              placeholder="e.g. +254 712 345 678"
+              keyboardType="phone-pad"
+              autoCapitalize="none"
+              icon={<Phone size={18} color={COLORS.textTertiary} />}
+            />
 
             {/* Email */}
             <View style={{ marginBottom: 16 }}>
@@ -316,7 +448,10 @@ export default function AuthScreen() {
                 <Mail size={18} color={COLORS.textTertiary} />
                 <TextInput
                   value={email}
-                  onChangeText={setEmail}
+                  onChangeText={(v) => {
+                    console.log('[AuthScreen] Email changed');
+                    setEmail(v);
+                  }}
                   onBlur={validateEmail}
                   placeholder="e.g. john@email.com"
                   placeholderTextColor={COLORS.textTertiary}
@@ -413,6 +548,76 @@ export default function AuthScreen() {
               ) : null}
             </View>
 
+            {/* Driver-only fields */}
+            {isDriver ? (
+              <View
+                style={{
+                  backgroundColor: COLORS.primaryMuted,
+                  borderRadius: 14,
+                  borderWidth: 1.5,
+                  borderColor: COLORS.primaryBorder,
+                  padding: 16,
+                  marginBottom: 24,
+                  gap: 0,
+                }}
+              >
+                <Text
+                  style={{
+                    fontSize: 13,
+                    fontWeight: '700',
+                    color: COLORS.textSecondary,
+                    fontFamily: 'Nunito_700Bold',
+                    letterSpacing: 0.6,
+                    textTransform: 'uppercase',
+                    marginBottom: 14,
+                  }}
+                >
+                  Vehicle Details
+                </Text>
+
+                <InputField
+                  label="Vehicle Make & Model"
+                  value={vehicleMakeModel}
+                  onChangeText={(v) => {
+                    console.log('[AuthScreen] Vehicle make/model changed');
+                    setVehicleMakeModel(v);
+                  }}
+                  placeholder="e.g. Toyota Corolla"
+                  keyboardType="default"
+                  autoCapitalize="words"
+                  icon={<Car size={18} color={COLORS.textTertiary} />}
+                />
+
+                <InputField
+                  label="License Plate Number"
+                  value={licensePlate}
+                  onChangeText={(v) => {
+                    console.log('[AuthScreen] License plate changed');
+                    setLicensePlate(v.toUpperCase());
+                  }}
+                  placeholder="e.g. KCA 123A"
+                  keyboardType="default"
+                  autoCapitalize="characters"
+                  icon={<FileText size={18} color={COLORS.textTertiary} />}
+                />
+
+                <View style={{ marginBottom: 0 }}>
+                  <InputField
+                    label="National ID / Driver's License Number"
+                    value={nationalId}
+                    onChangeText={(v) => {
+                      console.log('[AuthScreen] National ID changed');
+                      setNationalId(v);
+                    }}
+                    placeholder="e.g. 12345678"
+                    keyboardType="default"
+                    autoCapitalize="none"
+                    icon={<CreditCard size={18} color={COLORS.textTertiary} />}
+                  />
+                </View>
+              </View>
+            ) : null}
+
             {/* Error */}
             {error ? (
               <View
@@ -426,25 +631,29 @@ export default function AuthScreen() {
                 }}
               >
                 <Text
-                  style={{ fontSize: 13, color: COLORS.danger, fontFamily: 'Nunito_600SemiBold' }}
+                  style={{
+                    fontSize: 13,
+                    color: COLORS.danger,
+                    fontFamily: 'Nunito_600SemiBold',
+                  }}
                 >
                   {error}
                 </Text>
               </View>
             ) : null}
 
-            {/* Create Account */}
+            {/* Create Account Button */}
             <AnimatedPressable
-              onPress={handleEmailAuth}
-              disabled={isSignUpDisabled}
+              onPress={handleCreateAccount}
+              disabled={isSubmitDisabled}
               style={{
-                backgroundColor: isSignUpDisabled ? COLORS.border : COLORS.primary,
+                backgroundColor: isSubmitDisabled ? COLORS.border : COLORS.primary,
                 borderRadius: 14,
-                height: 52,
+                height: 54,
                 alignItems: 'center',
                 justifyContent: 'center',
-                marginBottom: 16,
-                boxShadow: isSignUpDisabled ? undefined : '0 4px 16px rgba(245,197,24,0.35)',
+                marginBottom: 32,
+                boxShadow: isSubmitDisabled ? undefined : '0 4px 16px rgba(245,197,24,0.35)',
               }}
             >
               {loading ? (
@@ -454,100 +663,12 @@ export default function AuthScreen() {
                   style={{
                     fontSize: 16,
                     fontWeight: '700',
-                    color: isSignUpDisabled ? COLORS.textTertiary : COLORS.text,
+                    color: isSubmitDisabled ? COLORS.textTertiary : COLORS.text,
                     fontFamily: 'Nunito_700Bold',
                   }}
                 >
                   Create Account
                 </Text>
-              )}
-            </AnimatedPressable>
-
-            {/* Divider */}
-            <View
-              style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}
-            >
-              <View style={{ flex: 1, height: 1, backgroundColor: COLORS.border }} />
-              <Text
-                style={{
-                  marginHorizontal: 12,
-                  fontSize: 13,
-                  color: COLORS.textTertiary,
-                  fontFamily: 'Nunito_400Regular',
-                }}
-              >
-                or continue with
-              </Text>
-              <View style={{ flex: 1, height: 1, backgroundColor: COLORS.border }} />
-            </View>
-
-            {/* Apple */}
-            <AnimatedPressable
-              onPress={handleApple}
-              disabled={socialLoading !== null}
-              style={{
-                backgroundColor: '#1A1A1A',
-                borderRadius: 14,
-                height: 52,
-                flexDirection: 'row',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 10,
-                marginBottom: 12,
-              }}
-            >
-              {socialLoading === 'apple' ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <>
-                  <Text style={{ fontSize: 20, color: '#fff' }}>🍎</Text>
-                  <Text
-                    style={{
-                      fontSize: 15,
-                      fontWeight: '600',
-                      color: '#fff',
-                      fontFamily: 'Nunito_600SemiBold',
-                    }}
-                  >
-                    Continue with Apple
-                  </Text>
-                </>
-              )}
-            </AnimatedPressable>
-
-            {/* Google */}
-            <AnimatedPressable
-              onPress={handleGoogle}
-              disabled={socialLoading !== null}
-              style={{
-                backgroundColor: COLORS.surface,
-                borderRadius: 14,
-                height: 52,
-                flexDirection: 'row',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 10,
-                marginBottom: 24,
-                borderWidth: 1.5,
-                borderColor: COLORS.border,
-              }}
-            >
-              {socialLoading === 'google' ? (
-                <ActivityIndicator color={COLORS.text} />
-              ) : (
-                <>
-                  <Text style={{ fontSize: 20 }}>🌐</Text>
-                  <Text
-                    style={{
-                      fontSize: 15,
-                      fontWeight: '600',
-                      color: COLORS.text,
-                      fontFamily: 'Nunito_600SemiBold',
-                    }}
-                  >
-                    Continue with Google
-                  </Text>
-                </>
               )}
             </AnimatedPressable>
           </Animated.View>

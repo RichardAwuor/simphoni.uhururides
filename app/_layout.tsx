@@ -36,9 +36,9 @@ function NavigationGuard({ children }: { children: React.ReactNode }) {
     const inAuthCallback = segments[0] === 'auth-callback';
 
     if (!user) {
-      if (!inAuthScreen && !inAuthPopup && !inAuthCallback) {
-        console.log('[NavigationGuard] No user, redirecting to auth-screen');
-        router.replace('/auth-screen');
+      if (!inWelcome && !inAuthScreen && !inAuthPopup && !inAuthCallback) {
+        console.log('[NavigationGuard] No user, redirecting to welcome');
+        router.replace('/welcome');
       }
     } else if (!profile) {
       if (!inWelcome && !inOnboarding) {

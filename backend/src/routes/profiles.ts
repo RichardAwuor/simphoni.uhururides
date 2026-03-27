@@ -5,14 +5,11 @@ import * as schema from '../db/schema/schema.js';
 import type { App } from '../index.js';
 
 interface CreateProfileBody {
-  user_type: 'driver' | 'rider';
-  first_name: string;
-  last_name: string;
-  resident_district: string;
+  name: string;
+  phone: string;
   country: 'kenya' | 'tanzania' | 'uganda';
   language: 'english' | 'swahili' | 'luganda';
-  mobile_number?: string;
-  profile_picture_url?: string;
+  userType: 'driver' | 'rider';
 }
 
 interface UpdateProfileBody {
@@ -78,28 +75,25 @@ export function register(app: App, fastify: FastifyInstance) {
     return profile;
   });
 
-  // POST /api/profiles/me - Create profile for current user
+  // POST /api/profiles/me - Upsert profile for current user
   fastify.post('/api/profiles/me', {
     schema: {
-      description: 'Create user profile',
+      description: 'Upsert user profile',
       tags: ['profiles'],
       body: {
         type: 'object',
-        required: ['user_type', 'first_name', 'last_name', 'resident_district', 'country', 'language'],
+        required: ['name', 'phone', 'country', 'language', 'userType'],
         properties: {
-          user_type: { type: 'string', enum: ['driver', 'rider'] },
-          first_name: { type: 'string' },
-          last_name: { type: 'string' },
-          resident_district: { type: 'string' },
+          name: { type: 'string' },
+          phone: { type: 'string' },
           country: { type: 'string', enum: ['kenya', 'tanzania', 'uganda'] },
           language: { type: 'string', enum: ['english', 'swahili', 'luganda'] },
-          mobile_number: { type: 'string' },
-          profile_picture_url: { type: 'string' },
+          userType: { type: 'string', enum: ['driver', 'rider'] },
         },
       },
       response: {
-        201: {
-          description: 'Profile created',
+        200: {
+          description: 'Profile upserted',
           type: 'object',
           properties: {
             id: { type: 'string' },
@@ -128,32 +122,58 @@ export function register(app: App, fastify: FastifyInstance) {
     const session = await requireAuth(request, reply);
     if (!session) return;
 
-    const { user_type, first_name, last_name, resident_district, country, language, mobile_number, profile_picture_url } = request.body;
+    const { name, phone, country, language, userType } = request.body;
 
     app.logger.info(
-      { userId: session.user.id, userType: user_type },
-      'Creating profile',
+      { userId: session.user.id, userType },
+      'Upserting profile',
     );
 
     try {
-      const profileId = createId();
-      const [profile] = await app.db.insert(schema.profiles).values({
-        id: profileId,
-        user_id: session.user.id,
-        user_type,
-        first_name,
-        last_name,
-        resident_district,
-        country,
-        language,
-        mobile_number: mobile_number || null,
-        profile_picture_url: profile_picture_url || null,
-      }).returning();
+      const nameParts = name.trim().split(/\s+/);
+      const firstName = nameParts[0];
+      const lastName = nameParts.slice(1).join(' ');
 
-      app.logger.info({ userId: session.user.id, profileId: profile.id }, 'Profile created successfully');
-      return reply.status(201).send(profile);
+      const existingProfile = await app.db.query.profiles.findFirst({
+        where: eq(schema.profiles.user_id, session.user.id),
+      });
+
+      let profile;
+      if (existingProfile) {
+        const [updated] = await app.db.update(schema.profiles)
+          .set({
+            user_type: userType,
+            first_name: firstName,
+            last_name: lastName,
+            mobile_number: phone,
+            country,
+            language,
+            resident_district: '',
+          })
+          .where(eq(schema.profiles.user_id, session.user.id))
+          .returning();
+        profile = updated;
+      } else {
+        const profileId = createId();
+        const [created] = await app.db.insert(schema.profiles).values({
+          id: profileId,
+          user_id: session.user.id,
+          user_type: userType,
+          first_name: firstName,
+          last_name: lastName,
+          resident_district: '',
+          country,
+          language,
+          mobile_number: phone,
+          profile_picture_url: null,
+        }).returning();
+        profile = created;
+      }
+
+      app.logger.info({ userId: session.user.id, profileId: profile.id }, 'Profile upserted successfully');
+      return profile;
     } catch (error) {
-      app.logger.error({ err: error, userId: session.user.id, body: request.body }, 'Failed to create profile');
+      app.logger.error({ err: error, userId: session.user.id, body: request.body }, 'Failed to upsert profile');
       throw error;
     }
   });

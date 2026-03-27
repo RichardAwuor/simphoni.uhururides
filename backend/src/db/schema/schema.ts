@@ -33,6 +33,7 @@ export const driver_details = pgTable('driver_details', {
   car_registration: text('car_registration').notNull(),
   car_color: text('car_color').notNull(),
   is_available: boolean('is_available').notNull().default(true),
+  license_number: text('license_number'),
   created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 });
 

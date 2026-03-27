@@ -48,8 +48,9 @@ export default function WelcomeScreen() {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.background }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#FFF8E1' }}>
       <ScrollView
+        style={{ backgroundColor: '#FFF8E1' }}
         contentContainerStyle={{ paddingHorizontal: 24, paddingTop: 40, paddingBottom: 100 }}
         showsVerticalScrollIndicator={false}
       >

@@ -9,6 +9,9 @@ import {
   Animated,
   ActivityIndicator,
 } from 'react-native';
+import { Image } from 'expo-image';
+
+const LOGO = require('@/assets/images/bdc4a1e4-99be-444d-bc2e-af445de9d03c.png');
 import { useAuth } from '@/contexts/AuthContext';
 import { COLORS } from '@/constants/colors';
 import { AnimatedPressable } from '@/components/AnimatedPressable';
@@ -133,22 +136,7 @@ export default function AuthScreen() {
           }}
         >
           <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }], alignItems: 'center' }}>
-            <View
-              style={{
-                width: 88,
-                height: 88,
-                borderRadius: 44,
-                backgroundColor: COLORS.primary,
-                alignItems: 'center',
-                justifyContent: 'center',
-                marginBottom: 20,
-                boxShadow: '0 4px 20px rgba(245,197,24,0.4)',
-              }}
-            >
-              <Text style={{ fontSize: 44, fontWeight: '800', color: '#1A1A1A', fontFamily: 'Nunito_800ExtraBold' }}>
-                U
-              </Text>
-            </View>
+            <Image source={LOGO} style={{ width: 180, height: 180, marginBottom: 20 }} contentFit="contain" />
             <Text
               style={{
                 fontSize: 30,

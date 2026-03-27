@@ -8,6 +8,9 @@ import {
   ActivityIndicator,
   Alert,
 } from 'react-native';
+import { Image as ExpoImage } from 'expo-image';
+
+const LOGO = require('@/assets/images/bdc4a1e4-99be-444d-bc2e-af445de9d03c.png');
 import { Stack, useRouter, useLocalSearchParams } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { COLORS } from '@/constants/colors';
@@ -140,6 +143,11 @@ export default function RiderRegisterScreen() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
+        {/* Logo */}
+        <View style={{ alignItems: 'center', marginBottom: 16 }}>
+          <ExpoImage source={LOGO} style={{ width: 100, height: 100 }} contentFit="contain" />
+        </View>
+
         {/* Profile picture */}
         <View style={{ alignItems: 'center', marginBottom: 28 }}>
           <AnimatedPressable onPress={pickImage}>

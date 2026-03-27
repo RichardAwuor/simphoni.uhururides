@@ -5,6 +5,9 @@ import {
   ScrollView,
   SafeAreaView,
 } from 'react-native';
+import { Image } from 'expo-image';
+
+const LOGO = require('@/assets/images/bdc4a1e4-99be-444d-bc2e-af445de9d03c.png');
 import { useRouter } from 'expo-router';
 import { COLORS } from '@/constants/colors';
 import { AnimatedPressable } from '@/components/AnimatedPressable';
@@ -52,21 +55,7 @@ export default function WelcomeScreen() {
       >
         {/* Header */}
         <View style={{ alignItems: 'center', marginBottom: 36 }}>
-          <View
-            style={{
-              width: 64,
-              height: 64,
-              borderRadius: 32,
-              backgroundColor: '#1A1A1A',
-              alignItems: 'center',
-              justifyContent: 'center',
-              marginBottom: 16,
-            }}
-          >
-            <Text style={{ fontSize: 32, fontWeight: '800', color: COLORS.primary, fontFamily: 'Nunito_800ExtraBold' }}>
-              U
-            </Text>
-          </View>
+          <Image source={LOGO} style={{ width: 140, height: 140, marginBottom: 16 }} contentFit="contain" />
           <Text
             style={{
               fontSize: 28,

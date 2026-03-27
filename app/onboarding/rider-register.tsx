@@ -17,7 +17,7 @@ import { COLORS } from '@/constants/colors';
 import { AnimatedPressable } from '@/components/AnimatedPressable';
 import { apiPost } from '@/utils/api';
 import { useProfile } from '@/contexts/ProfileContext';
-import { Camera } from 'lucide-react-native';
+import { Camera, Phone } from 'lucide-react-native';
 
 function InputField({
   label,
@@ -79,6 +79,7 @@ export default function RiderRegisterScreen() {
 
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
+  const [phoneNumber, setPhoneNumber] = useState('');
   const [district, setDistrict] = useState('');
   const [profilePicture, setProfilePicture] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -106,19 +107,23 @@ export default function RiderRegisterScreen() {
     }
   };
 
+  const isFormValid = firstName.trim() && lastName.trim() && phoneNumber.trim() && district.trim();
+
   const handleSubmit = async () => {
     const f1 = validate('First Name', firstName);
     const f2 = validate('Last Name', lastName);
-    const f3 = validate('Resident District', district);
-    if (!f1 || !f2 || !f3) return;
+    const f3 = validate('Phone Number', phoneNumber);
+    const f4 = validate('Resident District', district);
+    if (!f1 || !f2 || !f3 || !f4) return;
 
     setLoading(true);
-    console.log('[RiderRegister] Creating rider profile:', { firstName, lastName, district, country: params.country });
+    console.log('[RiderRegister] Creating rider profile:', { firstName, lastName, phoneNumber, district, country: params.country });
     try {
       await apiPost('/api/profiles/me', {
         user_type: 'rider',
         first_name: firstName.trim(),
         last_name: lastName.trim(),
+        phone_number: phoneNumber.trim(),
         resident_district: district.trim(),
         country: params.country || 'kenya',
         language: params.language || 'english',
@@ -194,6 +199,49 @@ export default function RiderRegisterScreen() {
           error={errors['Last Name']}
           onBlur={() => validate('Last Name', lastName)}
         />
+
+        {/* Phone Number */}
+        <View style={{ marginBottom: 16 }}>
+          <Text style={{ fontSize: 13, fontWeight: '600', color: COLORS.textSecondary, fontFamily: 'Nunito_600SemiBold', marginBottom: 6 }}>
+            Phone Number *
+          </Text>
+          <View style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            backgroundColor: COLORS.surface,
+            borderRadius: 12,
+            borderWidth: 1.5,
+            borderColor: errors['Phone Number'] ? COLORS.danger : COLORS.border,
+            paddingHorizontal: 14,
+            height: 52,
+          }}>
+            <Phone size={18} color={COLORS.textSecondary} style={{ marginRight: 10 }} />
+            <TextInput
+              value={phoneNumber}
+              onChangeText={(v) => {
+                console.log('[RiderRegister] Phone number changed');
+                setPhoneNumber(v);
+              }}
+              onBlur={() => validate('Phone Number', phoneNumber)}
+              placeholder="e.g. +254 712 345 678"
+              placeholderTextColor={COLORS.textTertiary}
+              keyboardType="phone-pad"
+              autoCapitalize="none"
+              style={{
+                flex: 1,
+                fontSize: 15,
+                color: COLORS.text,
+                fontFamily: 'Nunito_400Regular',
+              }}
+            />
+          </View>
+          {errors['Phone Number'] ? (
+            <Text style={{ fontSize: 12, color: COLORS.danger, fontFamily: 'Nunito_400Regular', marginTop: 4 }}>
+              {errors['Phone Number']}
+            </Text>
+          ) : null}
+        </View>
+
         <InputField
           label="Resident County / District *"
           value={district}
@@ -204,8 +252,11 @@ export default function RiderRegisterScreen() {
         />
 
         <AnimatedPressable
-          onPress={handleSubmit}
-          disabled={loading}
+          onPress={() => {
+            console.log('[RiderRegister] Create Account pressed');
+            handleSubmit();
+          }}
+          disabled={loading || !isFormValid}
           style={{
             backgroundColor: COLORS.primary,
             borderRadius: 16,

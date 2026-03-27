@@ -17,7 +17,7 @@ import { COLORS } from '@/constants/colors';
 import { AnimatedPressable } from '@/components/AnimatedPressable';
 import { RideRequestCard, RideRequest } from '@/components/RideRequestCard';
 import { apiGet, apiPost, apiPut } from '@/utils/api';
-import { MapPin, Flag, Car, X, Phone, ChevronDown } from 'lucide-react-native';
+import { MapPin, Flag, Car, X, Phone, CheckCircle, ArrowRight } from 'lucide-react-native';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -31,6 +31,16 @@ interface ActiveRide {
   driver_first_name?: string;
   driver_phone?: string;
   bargain_price?: number;
+}
+
+interface CompletedRideData {
+  id: string;
+  pickup_location: string;
+  destination: string;
+  price_offer: number;
+  currency: string;
+  rider_first_name?: string;
+  distance_km?: number;
 }
 
 // ─── Currency helpers ─────────────────────────────────────────────────────────
@@ -114,6 +124,239 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
+// ─── Ride Summary Modal ───────────────────────────────────────────────────────
+
+interface RideSummaryModalProps {
+  ride: CompletedRideData | null;
+  onDone: () => void;
+  completing: boolean;
+}
+
+function RideSummaryModal({ ride, onDone, completing }: RideSummaryModalProps) {
+  if (!ride) return null;
+
+  const fareDisplay = formatCurrency(ride.price_offer, ride.currency);
+  const currencyLabel = String(ride.currency).toUpperCase();
+  const fareAmount = Number(ride.price_offer).toLocaleString();
+  const riderName = ride.rider_first_name || 'Rider';
+  const hasDistance = ride.distance_km != null;
+  const distanceText = hasDistance ? `${Number(ride.distance_km).toFixed(1)} km` : '';
+
+  return (
+    <Modal visible={!!ride} transparent animationType="fade" statusBarTranslucent>
+      <View
+        style={{
+          flex: 1,
+          backgroundColor: 'rgba(0,0,0,0.7)',
+          justifyContent: 'center',
+          alignItems: 'center',
+          padding: 24,
+        }}
+      >
+        <View
+          style={{
+            backgroundColor: COLORS.surface,
+            borderRadius: 24,
+            padding: 28,
+            width: '100%',
+            alignItems: 'center',
+            gap: 0,
+          }}
+        >
+          {/* Checkmark */}
+          <View
+            style={{
+              width: 80,
+              height: 80,
+              borderRadius: 40,
+              backgroundColor: 'rgba(45,158,95,0.12)',
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginBottom: 16,
+            }}
+          >
+            <CheckCircle size={64} color={COLORS.success} strokeWidth={1.5} />
+          </View>
+
+          {/* Title */}
+          <Text
+            style={{
+              fontSize: 28,
+              fontWeight: '800',
+              color: '#1A1A1A',
+              fontFamily: 'Nunito_800ExtraBold',
+              marginBottom: 20,
+            }}
+          >
+            Ride Complete!
+          </Text>
+
+          {/* Fare box */}
+          <View
+            style={{
+              backgroundColor: COLORS.primaryMuted,
+              borderRadius: 16,
+              paddingVertical: 20,
+              paddingHorizontal: 32,
+              alignItems: 'center',
+              borderWidth: 1.5,
+              borderColor: COLORS.primaryBorder,
+              width: '100%',
+              marginBottom: 20,
+            }}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 6 }}>
+              <Text
+                style={{
+                  fontSize: 18,
+                  fontWeight: '800',
+                  color: '#E63946',
+                  fontFamily: 'Nunito_800ExtraBold',
+                }}
+              >
+                {currencyLabel}
+              </Text>
+              <Text
+                style={{
+                  fontSize: 48,
+                  fontWeight: '800',
+                  color: '#E63946',
+                  fontFamily: 'Nunito_800ExtraBold',
+                  letterSpacing: -1,
+                }}
+              >
+                {fareAmount}
+              </Text>
+            </View>
+            <Text
+              style={{
+                fontSize: 14,
+                color: '#5C4A00',
+                fontFamily: 'Nunito_600SemiBold',
+                marginTop: 4,
+              }}
+            >
+              Final Fare
+            </Text>
+          </View>
+
+          {/* Divider */}
+          <View
+            style={{
+              height: 1,
+              backgroundColor: COLORS.divider,
+              width: '100%',
+              marginBottom: 16,
+            }}
+          />
+
+          {/* Route row */}
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 8,
+              width: '100%',
+              marginBottom: 12,
+            }}
+          >
+            <MapPin size={16} color={COLORS.primary} />
+            <Text
+              style={{
+                fontSize: 13,
+                color: COLORS.text,
+                fontFamily: 'Nunito_600SemiBold',
+                flex: 1,
+              }}
+              numberOfLines={1}
+            >
+              {ride.pickup_location}
+            </Text>
+            <ArrowRight size={14} color={COLORS.textTertiary} />
+            <Flag size={16} color={COLORS.accent} />
+            <Text
+              style={{
+                fontSize: 13,
+                color: COLORS.text,
+                fontFamily: 'Nunito_600SemiBold',
+                flex: 1,
+              }}
+              numberOfLines={1}
+            >
+              {ride.destination}
+            </Text>
+          </View>
+
+          {/* Rider + distance row */}
+          <View
+            style={{
+              flexDirection: 'row',
+              justifyContent: 'space-between',
+              width: '100%',
+              marginBottom: 24,
+            }}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <View
+                style={{
+                  width: 24,
+                  height: 24,
+                  borderRadius: 12,
+                  backgroundColor: COLORS.primaryMuted,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <Text style={{ fontSize: 11, fontWeight: '700', color: COLORS.primary, fontFamily: 'Nunito_700Bold' }}>
+                  {riderName[0].toUpperCase()}
+                </Text>
+              </View>
+              <Text style={{ fontSize: 13, color: COLORS.textSecondary, fontFamily: 'Nunito_600SemiBold' }}>
+                {riderName}
+              </Text>
+            </View>
+            {hasDistance ? (
+              <Text style={{ fontSize: 13, color: COLORS.textTertiary, fontFamily: 'Nunito_600SemiBold' }}>
+                {distanceText}
+              </Text>
+            ) : null}
+          </View>
+
+          {/* Done button */}
+          <AnimatedPressable
+            onPress={onDone}
+            disabled={completing}
+            style={{
+              backgroundColor: '#F5C518',
+              borderRadius: 16,
+              height: 56,
+              width: '100%',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: '0 4px 16px rgba(245,197,24,0.4)',
+            }}
+          >
+            {completing ? (
+              <ActivityIndicator color="#1A1A1A" />
+            ) : (
+              <Text
+                style={{
+                  fontSize: 17,
+                  fontWeight: '800',
+                  color: '#1A1A1A',
+                  fontFamily: 'Nunito_800ExtraBold',
+                }}
+              >
+                Done — Collect Fare
+              </Text>
+            )}
+          </AnimatedPressable>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
 // ─── Driver View ──────────────────────────────────────────────────────────────
 
 function DriverView() {
@@ -125,6 +368,8 @@ function DriverView() {
   const [refreshing, setRefreshing] = useState(false);
   const [acceptModal, setAcceptModal] = useState<{ riderPhone: string } | null>(null);
   const [bargainModal, setBargainModal] = useState<{ id: string; price: number; currency: string } | null>(null);
+  const [completedRide, setCompletedRide] = useState<CompletedRideData | null>(null);
+  const [completing, setCompleting] = useState(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const fetchRequests = useCallback(async (silent = false) => {
@@ -195,6 +440,34 @@ function DriverView() {
       setRequests((prev) => prev.filter((r) => r.id !== id));
     } catch (e) {
       console.error('[DriverView] Reject failed:', e);
+    }
+  };
+
+  const handleCompleteRide = (req: RideRequest) => {
+    console.log('[DriverView] Complete ride tapped — showing fare summary for ride:', req.id, 'fare:', req.price_offer, req.currency);
+    setCompletedRide({
+      id: req.id,
+      pickup_location: req.pickup_location,
+      destination: req.destination,
+      price_offer: req.price_offer,
+      currency: req.currency,
+      rider_first_name: req.rider_first_name,
+    });
+  };
+
+  const handleDoneComplete = async () => {
+    if (!completedRide) return;
+    console.log('[DriverView] Driver confirmed fare — calling POST /api/rides/:id/complete for ride:', completedRide.id);
+    setCompleting(true);
+    try {
+      await apiPost(`/api/rides/${completedRide.id}/complete`, {});
+      console.log('[DriverView] Ride completed successfully:', completedRide.id);
+      setRequests((prev) => prev.filter((r) => r.id !== completedRide.id));
+    } catch (e) {
+      console.error('[DriverView] Complete ride failed:', e);
+    } finally {
+      setCompleting(false);
+      setCompletedRide(null);
     }
   };
 
@@ -287,14 +560,39 @@ function DriverView() {
           </View>
         ) : (
           requests.map((req, i) => (
-            <RideRequestCard
-              key={req.id}
-              request={req}
-              index={i}
-              onAccept={handleAccept}
-              onBargain={handleBargain}
-              onIgnore={handleIgnore}
-            />
+            <View key={req.id}>
+              <RideRequestCard
+                request={req}
+                index={i}
+                onAccept={handleAccept}
+                onBargain={handleBargain}
+                onIgnore={handleIgnore}
+              />
+              {req.status === 'accepted' && (
+                <View style={{ marginTop: -4, marginBottom: 12, paddingHorizontal: 2 }}>
+                  <AnimatedPressable
+                    onPress={() => {
+                      console.log('[DriverView] Complete Ride button pressed for ride:', req.id);
+                      handleCompleteRide(req);
+                    }}
+                    style={{
+                      backgroundColor: COLORS.success,
+                      borderRadius: 12,
+                      height: 48,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      flexDirection: 'row',
+                      gap: 8,
+                    }}
+                  >
+                    <CheckCircle size={18} color="#fff" />
+                    <Text style={{ fontSize: 15, fontWeight: '700', color: '#fff', fontFamily: 'Nunito_700Bold' }}>
+                      Complete Ride
+                    </Text>
+                  </AnimatedPressable>
+                </View>
+              )}
+            </View>
           ))
         )}
       </ScrollView>
@@ -393,6 +691,13 @@ function DriverView() {
           </View>
         </View>
       </Modal>
+
+      {/* Ride Summary Modal */}
+      <RideSummaryModal
+        ride={completedRide}
+        onDone={handleDoneComplete}
+        completing={completing}
+      />
     </View>
   );
 }

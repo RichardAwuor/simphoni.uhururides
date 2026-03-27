@@ -20,8 +20,7 @@ import { Mail, CheckCircle, XCircle } from 'lucide-react-native';
 import { router } from 'expo-router';
 
 export default function AuthScreen() {
-  const { signInWithEmail, signUpWithEmail, signInWithApple, signInWithGoogle } = useAuth();
-  const [isSignUp, setIsSignUp] = useState(false);
+  const { signUpWithEmail, signInWithApple, signInWithGoogle } = useAuth();
   const [email, setEmail] = useState('');
   const [confirmEmail, setConfirmEmail] = useState('');
   const [confirmTouched, setConfirmTouched] = useState(false);
@@ -51,28 +50,22 @@ export default function AuthScreen() {
   const emailsMismatch = confirmTouched && confirmEmail.length > 0 && email !== confirmEmail;
 
   const isSignUpDisabled = loading || !emailsMatch;
-  const isSignInDisabled = loading || !email;
 
   const handleEmailAuth = async () => {
     const emailOk = validateEmail();
     if (!emailOk) return;
-    if (isSignUp && !emailsMatch) return;
+    if (!emailsMatch) return;
 
     setLoading(true);
     setError('');
-    console.log('[AuthScreen] Email auth pressed, isSignUp:', isSignUp, 'email:', email);
+    console.log('[AuthScreen] Sign up pressed, email:', email);
     try {
-      if (isSignUp) {
-        await signUpWithEmail(email, email);
-        console.log('[AuthScreen] Sign up successful, navigating to /welcome');
-        router.replace('/welcome');
-      } else {
-        await signInWithEmail(email, email);
-        console.log('[AuthScreen] Sign in successful');
-      }
+      await signUpWithEmail(email, email);
+      console.log('[AuthScreen] Sign up successful, navigating to /(tabs)');
+      router.replace('/(tabs)');
     } catch (e: any) {
-      console.error('[AuthScreen] Email auth error:', e);
-      setError(e?.message || 'Authentication failed. Please try again.');
+      console.error('[AuthScreen] Sign up error:', e);
+      setError(e?.message || 'Registration failed. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -107,20 +100,6 @@ export default function AuthScreen() {
       setSocialLoading(null);
     }
   };
-
-  const toggleMode = () => {
-    const next = !isSignUp;
-    console.log('[AuthScreen] Toggle mode to:', next ? 'sign up' : 'sign in');
-    setIsSignUp(next);
-    setError('');
-    setEmailError('');
-    setConfirmEmail('');
-    setConfirmTouched(false);
-  };
-
-  const buttonLabel = isSignUp ? 'Continue' : 'Sign In';
-  const toggleLabel = isSignUp ? 'Already have an account? Sign in' : 'New here? Create account';
-  const headingLabel = isSignUp ? 'Create your account' : 'Welcome back';
 
   const confirmIconColor = emailsMatch ? '#22c55e' : '#E63946';
   const showConfirmIcon = confirmTouched && confirmEmail.length > 0;
@@ -192,7 +171,7 @@ export default function AuthScreen() {
               marginBottom: 24,
             }}
           >
-            {headingLabel}
+            Create your account
           </Text>
 
           {/* Email */}
@@ -238,61 +217,57 @@ export default function AuthScreen() {
             ) : null}
           </View>
 
-          {/* Confirm Email — sign up only */}
-          {isSignUp ? (
-            <View style={{ marginBottom: 24 }}>
-              <Text style={{ fontSize: 13, fontWeight: '600', color: COLORS.textSecondary, fontFamily: 'Nunito_600SemiBold', marginBottom: 6 }}>
-                Confirm email address
-              </Text>
-              <View
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  backgroundColor: COLORS.surface,
-                  borderRadius: 12,
-                  borderWidth: 1.5,
-                  borderColor: emailsMismatch ? COLORS.danger : emailsMatch ? '#22c55e' : COLORS.border,
-                  paddingHorizontal: 14,
-                  height: 52,
+          {/* Confirm Email */}
+          <View style={{ marginBottom: 24 }}>
+            <Text style={{ fontSize: 13, fontWeight: '600', color: COLORS.textSecondary, fontFamily: 'Nunito_600SemiBold', marginBottom: 6 }}>
+              Confirm email address
+            </Text>
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                backgroundColor: COLORS.surface,
+                borderRadius: 12,
+                borderWidth: 1.5,
+                borderColor: emailsMismatch ? COLORS.danger : emailsMatch ? '#22c55e' : COLORS.border,
+                paddingHorizontal: 14,
+                height: 52,
+              }}
+            >
+              <Mail size={18} color={COLORS.textTertiary} />
+              <TextInput
+                value={confirmEmail}
+                onChangeText={(val) => {
+                  setConfirmEmail(val);
+                  if (!confirmTouched && val.length > 0) setConfirmTouched(true);
                 }}
-              >
-                <Mail size={18} color={COLORS.textTertiary} />
-                <TextInput
-                  value={confirmEmail}
-                  onChangeText={(val) => {
-                    setConfirmEmail(val);
-                    if (!confirmTouched && val.length > 0) setConfirmTouched(true);
-                  }}
-                  placeholder="Re-enter your email"
-                  placeholderTextColor={COLORS.textTertiary}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  style={{
-                    flex: 1,
-                    marginLeft: 10,
-                    fontSize: 15,
-                    color: COLORS.text,
-                    fontFamily: 'Nunito_400Regular',
-                  }}
-                />
-                {showConfirmIcon ? (
-                  emailsMatch ? (
-                    <CheckCircle size={20} color={confirmIconColor} />
-                  ) : (
-                    <XCircle size={20} color={confirmIconColor} />
-                  )
-                ) : null}
-              </View>
-              {emailsMismatch ? (
-                <Text style={{ fontSize: 12, color: COLORS.danger, fontFamily: 'Nunito_400Regular', marginTop: 4 }}>
-                  Emails do not match
-                </Text>
+                placeholder="Re-enter your email"
+                placeholderTextColor={COLORS.textTertiary}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoCorrect={false}
+                style={{
+                  flex: 1,
+                  marginLeft: 10,
+                  fontSize: 15,
+                  color: COLORS.text,
+                  fontFamily: 'Nunito_400Regular',
+                }}
+              />
+              {showConfirmIcon ? (
+                emailsMatch ? (
+                  <CheckCircle size={20} color={confirmIconColor} />
+                ) : (
+                  <XCircle size={20} color={confirmIconColor} />
+                )
               ) : null}
             </View>
-          ) : (
-            <View style={{ marginBottom: 24 }} />
-          )}
+            {emailsMismatch ? (
+              <Text style={{ fontSize: 12, color: COLORS.danger, fontFamily: 'Nunito_400Regular', marginTop: 4 }}>
+                Emails do not match
+              </Text>
+            ) : null}
+          </View>
 
           {/* Error */}
           {error ? (
@@ -315,22 +290,22 @@ export default function AuthScreen() {
           {/* Primary button */}
           <AnimatedPressable
             onPress={handleEmailAuth}
-            disabled={isSignUp ? isSignUpDisabled : isSignInDisabled}
+            disabled={isSignUpDisabled}
             style={{
-              backgroundColor: (isSignUp ? isSignUpDisabled : isSignInDisabled) ? COLORS.border : COLORS.primary,
+              backgroundColor: isSignUpDisabled ? COLORS.border : COLORS.primary,
               borderRadius: 14,
               height: 52,
               alignItems: 'center',
               justifyContent: 'center',
               marginBottom: 16,
-              boxShadow: (isSignUp ? isSignUpDisabled : isSignInDisabled) ? undefined : '0 4px 16px rgba(245,197,24,0.35)',
+              boxShadow: isSignUpDisabled ? undefined : '0 4px 16px rgba(245,197,24,0.35)',
             }}
           >
             {loading ? (
               <ActivityIndicator color={COLORS.text} />
             ) : (
               <Text style={{ fontSize: 16, fontWeight: '700', color: COLORS.text, fontFamily: 'Nunito_700Bold' }}>
-                {buttonLabel}
+                Create Account
               </Text>
             )}
           </AnimatedPressable>
@@ -398,13 +373,6 @@ export default function AuthScreen() {
                 </Text>
               </>
             )}
-          </AnimatedPressable>
-
-          {/* Toggle */}
-          <AnimatedPressable onPress={toggleMode} style={{ alignItems: 'center' }}>
-            <Text style={{ fontSize: 14, color: COLORS.textSecondary, fontFamily: 'Nunito_600SemiBold' }}>
-              {toggleLabel}
-            </Text>
           </AnimatedPressable>
         </Animated.View>
       </ScrollView>

@@ -28,25 +28,27 @@ function NavigationGuard({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (authLoading || profileLoading) return;
 
-    const inAuthGroup = segments[0] === 'auth-screen';
+    const inAuthScreen = segments[0] === 'auth-screen';
     const inWelcome = segments[0] === 'welcome';
     const inOnboarding = segments[0] === 'onboarding';
     const inTabs = segments[0] === '(tabs)';
+    const inAuthPopup = segments[0] === 'auth-popup';
+    const inAuthCallback = segments[0] === 'auth-callback';
 
     if (!user) {
-      if (!inAuthGroup) {
+      if (!inAuthScreen && !inAuthPopup && !inAuthCallback) {
         console.log('[NavigationGuard] No user, redirecting to auth-screen');
         router.replace('/auth-screen');
       }
     } else if (!profile) {
       if (!inWelcome && !inOnboarding) {
-        console.log('[NavigationGuard] No profile, redirecting to welcome');
+        console.log('[NavigationGuard] User exists but no profile, redirecting to welcome');
         router.replace('/welcome');
       }
     } else {
       if (!inTabs) {
         console.log('[NavigationGuard] User + profile found, redirecting to tabs');
-        router.replace('/(tabs)/(home)');
+        router.replace('/(tabs)');
       }
     }
   }, [user, profile, authLoading, profileLoading, segments]);

@@ -4,7 +4,7 @@
     "slug": "natively-app",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/app-icon-xst.png",
+    "icon": "./assets/images/b5bc66af-b6dd-4cb6-821a-39afe88833d9.png",
     "userInterfaceStyle": "automatic",
     "splash": {
       "image": "./assets/images/app-icon-xst.png",
@@ -20,13 +20,13 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/app-icon-xst.png",
-        "backgroundColor": "#000000"
+        "foregroundImage": "./assets/images/b5bc66af-b6dd-4cb6-821a-39afe88833d9.png",
+        "backgroundColor": "#F5C518"
       },
       "package": "com.placeholder.app"
     },
     "web": {
-      "favicon": "./assets/images/final_quest_240x240.png",
+      "favicon": "./assets/images/b5bc66af-b6dd-4cb6-821a-39afe88833d9.png",
       "bundler": "metro"
     },
     "plugins": [

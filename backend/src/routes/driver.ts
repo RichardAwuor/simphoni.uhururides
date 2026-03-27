@@ -6,9 +6,9 @@ import { user } from '../db/schema/auth-schema.js';
 import type { App } from '../index.js';
 
 interface CreateDriverDetailsBody {
-  car_make: 'Toyota' | 'Nissan' | 'Ford' | 'Mercedes' | 'Volkswagen' | 'Others';
-  car_registration: string;
-  car_color: string;
+  vehicleMake: 'Toyota' | 'Nissan' | 'Ford' | 'Mercedes' | 'Volkswagen' | 'Others';
+  licensePlate: string;
+  licenseNumber: string;
 }
 
 interface UpdateAvailabilityBody {
@@ -18,23 +18,23 @@ interface UpdateAvailabilityBody {
 export function register(app: App, fastify: FastifyInstance) {
   const requireAuth = app.requireAuth();
 
-  // POST /api/driver/details - Create driver details
+  // POST /api/driver/details - Upsert driver details
   fastify.post('/api/driver/details', {
     schema: {
-      description: 'Create driver details',
+      description: 'Upsert driver details',
       tags: ['driver'],
       body: {
         type: 'object',
-        required: ['car_make', 'car_registration', 'car_color'],
+        required: ['vehicleMake', 'licensePlate', 'licenseNumber'],
         properties: {
-          car_make: { type: 'string', enum: ['Toyota', 'Nissan', 'Ford', 'Mercedes', 'Volkswagen', 'Others'] },
-          car_registration: { type: 'string' },
-          car_color: { type: 'string' },
+          vehicleMake: { type: 'string', enum: ['Toyota', 'Nissan', 'Ford', 'Mercedes', 'Volkswagen', 'Others'] },
+          licensePlate: { type: 'string' },
+          licenseNumber: { type: 'string' },
         },
       },
       response: {
-        201: {
-          description: 'Driver details created',
+        200: {
+          description: 'Driver details upserted',
           type: 'object',
           properties: {
             id: { type: 'string' },
@@ -43,6 +43,7 @@ export function register(app: App, fastify: FastifyInstance) {
             car_registration: { type: 'string' },
             car_color: { type: 'string' },
             is_available: { type: 'boolean' },
+            license_number: { type: ['string', 'null'] },
             created_at: { type: 'string', format: 'date-time' },
           },
         },
@@ -59,25 +60,46 @@ export function register(app: App, fastify: FastifyInstance) {
     const session = await requireAuth(request, reply);
     if (!session) return;
 
-    const { car_make, car_registration, car_color } = request.body;
+    const { vehicleMake, licensePlate, licenseNumber } = request.body;
 
-    app.logger.info({ userId: session.user.id }, 'Creating driver details');
+    app.logger.info({ userId: session.user.id, vehicleMake }, 'Upserting driver details');
 
     try {
-      const driverId = createId();
-      const [details] = await app.db.insert(schema.driver_details).values({
-        id: driverId,
-        user_id: session.user.id,
-        car_make,
-        car_registration: car_registration.toUpperCase(),
-        car_color,
-        is_available: true,
-      }).returning();
+      const existingDetails = await app.db.query.driver_details.findFirst({
+        where: eq(schema.driver_details.user_id, session.user.id),
+      });
 
-      app.logger.info({ userId: session.user.id, driverId: details.id }, 'Driver details created successfully');
-      return reply.status(201).send(details);
+      let details;
+      if (existingDetails) {
+        const [updated] = await app.db.update(schema.driver_details)
+          .set({
+            car_make: vehicleMake,
+            car_registration: licensePlate.toUpperCase(),
+            license_number: licenseNumber,
+            car_color: 'white',
+            is_available: false,
+          })
+          .where(eq(schema.driver_details.user_id, session.user.id))
+          .returning();
+        details = updated;
+      } else {
+        const driverId = createId();
+        const [created] = await app.db.insert(schema.driver_details).values({
+          id: driverId,
+          user_id: session.user.id,
+          car_make: vehicleMake,
+          car_registration: licensePlate.toUpperCase(),
+          car_color: 'white',
+          is_available: false,
+          license_number: licenseNumber,
+        }).returning();
+        details = created;
+      }
+
+      app.logger.info({ userId: session.user.id, driverId: details.id }, 'Driver details upserted successfully');
+      return details;
     } catch (error) {
-      app.logger.error({ err: error, userId: session.user.id, body: request.body }, 'Failed to create driver details');
+      app.logger.error({ err: error, userId: session.user.id, body: request.body }, 'Failed to upsert driver details');
       throw error;
     }
   });

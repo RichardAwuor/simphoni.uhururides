@@ -22,18 +22,17 @@ describe("API Integration Tests", () => {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          user_type: "driver",
-          first_name: "Test",
-          last_name: "User",
-          resident_district: "Nairobi",
+          name: "Test User",
+          phone: "+254712345678",
           country: "kenya",
           language: "english",
-          mobile_number: "+254712345678",
+          userType: "driver",
         }),
       });
-      await expectStatus(res, 201);
+      await expectStatus(res, 200);
       const data = await res.json();
-      expect(data.first_name).toBe("Test");
+      expect(data.id).toBeDefined();
+      expect(data.country).toBe("kenya");
       expect(data.user_type).toBe("driver");
     });
 
@@ -42,7 +41,7 @@ describe("API Integration Tests", () => {
       await expectStatus(res, 200);
       const data = await res.json();
       expect(data.id).toBeDefined();
-      expect(data.first_name).toBe("Test");
+      expect(data.country).toBe("kenya");
     });
 
     test("Update user profile", async () => {
@@ -63,9 +62,8 @@ describe("API Integration Tests", () => {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          user_type: "driver",
-          first_name: "Test",
-          // missing required fields: last_name, resident_district, country, language
+          name: "Test User",
+          // missing required fields: phone, country, language, userType
         }),
       });
       await expectStatus(res, 400);
@@ -86,13 +84,14 @@ describe("API Integration Tests", () => {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          car_make: "Toyota",
-          car_registration: "KBR 123A",
-          car_color: "Silver",
+          vehicleMake: "Toyota",
+          licensePlate: "KBR 123A",
+          licenseNumber: "DL123456",
         }),
       });
-      await expectStatus(res, 201);
+      await expectStatus(res, 200);
       const data = await res.json();
+      expect(data.id).toBeDefined();
       expect(data.car_make).toBe("Toyota");
       expect(data.is_available).toBeDefined();
     });
@@ -110,8 +109,8 @@ describe("API Integration Tests", () => {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          car_make: "Toyota",
-          // missing: car_registration, car_color
+          vehicleMake: "Toyota",
+          // missing: licensePlate, licenseNumber
         }),
       });
       await expectStatus(res, 400);

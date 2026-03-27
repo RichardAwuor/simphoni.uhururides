@@ -1,0 +1,1 @@
+ALTER TABLE "driver_details" ADD COLUMN "license_number" text;

@@ -66,7 +66,7 @@ export default function WelcomeScreen() {
               marginBottom: 6,
             }}
           >
-            Welcome to Uhuru
+            Welcome to Uhuru-Rides
           </Text>
           <Text style={{ fontSize: 15, color: COLORS.textSecondary, fontFamily: 'Nunito_400Regular', textAlign: 'center' }}>
             Let's set up your profile in a few steps

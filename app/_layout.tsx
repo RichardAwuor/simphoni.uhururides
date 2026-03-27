@@ -16,7 +16,7 @@ import { COLORS } from '@/constants/colors';
 SplashScreen.preventAutoHideAsync();
 
 export const unstable_settings = {
-  initialRouteName: '(tabs)',
+  initialRouteName: 'welcome',
 };
 
 function NavigationGuard({ children }: { children: React.ReactNode }) {

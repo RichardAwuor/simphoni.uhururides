@@ -116,7 +116,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signUpWithEmail = async (email: string, password: string, name?: string) => {
-    await authClient.signUp.email({ email, password, name });
+    console.log('[AuthContext] signUpWithEmail called for:', email);
+    const result = await authClient.signUp.email({
+      email,
+      password,
+      name: name || email.split('@')[0],
+    });
+    if (result?.error) {
+      console.error('[AuthContext] signUpWithEmail error:', result.error);
+      throw new Error(result.error.message || 'Sign up failed. Please try again.');
+    }
+    console.log('[AuthContext] signUpWithEmail success, fetching user session');
     await fetchUser();
   };
 

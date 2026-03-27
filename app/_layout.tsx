@@ -41,7 +41,8 @@ function NavigationGuard({ children }: { children: React.ReactNode }) {
         router.replace('/welcome');
       }
     } else if (!profile) {
-      if (!inWelcome && !inOnboarding) {
+      // Allow auth-screen (user just signed up, profile save is in-flight or pending)
+      if (!inWelcome && !inOnboarding && !inAuthScreen && !inTabs) {
         console.log('[NavigationGuard] User exists but no profile, redirecting to welcome');
         router.replace('/welcome');
       }

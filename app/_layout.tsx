@@ -30,7 +30,6 @@ function NavigationGuard({ children }: { children: React.ReactNode }) {
 
     const inAuthScreen = segments[0] === 'auth-screen';
     const inWelcome = segments[0] === 'welcome';
-    const inOnboarding = segments[0] === 'onboarding';
     const inTabs = segments[0] === '(tabs)';
     const inAuthPopup = segments[0] === 'auth-popup';
     const inAuthCallback = segments[0] === 'auth-callback';
@@ -42,7 +41,7 @@ function NavigationGuard({ children }: { children: React.ReactNode }) {
       }
     } else if (!profile) {
       // Allow auth-screen (user just signed up, profile save is in-flight or pending)
-      if (!inWelcome && !inOnboarding && !inAuthScreen && !inTabs) {
+      if (!inWelcome && !inAuthScreen && !inTabs) {
         console.log('[NavigationGuard] User exists but no profile, redirecting to welcome');
         router.replace('/welcome');
       }
@@ -91,7 +90,6 @@ function RootLayoutInner() {
           <Stack.Screen name="auth-popup" options={{ headerShown: false }} />
           <Stack.Screen name="auth-callback" options={{ headerShown: false }} />
           <Stack.Screen name="welcome" options={{ headerShown: false }} />
-          <Stack.Screen name="onboarding" options={{ headerShown: false }} />
         </Stack>
         <SystemBars style="auto" />
       </NavigationGuard>

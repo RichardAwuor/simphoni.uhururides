@@ -7,7 +7,7 @@ import {
 } from 'react-native';
 import { Image } from 'expo-image';
 
-const LOGO = require('@/assets/images/eb9079ba-77d3-4f39-a6db-ac178d863627.png');
+const LOGO = require('@/assets/images/affbe497-25f0-4e5b-afa0-fdb877dfaf49.png');
 import { useRouter } from 'expo-router';
 import { COLORS } from '@/constants/colors';
 import { AnimatedPressable } from '@/components/AnimatedPressable';

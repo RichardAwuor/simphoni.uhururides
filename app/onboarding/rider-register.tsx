@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { Image as ExpoImage } from 'expo-image';
 
-const LOGO = require('@/assets/images/bdc4a1e4-99be-444d-bc2e-af445de9d03c.png');
+const LOGO = require('@/assets/images/affbe497-25f0-4e5b-afa0-fdb877dfaf49.png');
 import { Stack, useRouter, useLocalSearchParams } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { COLORS } from '@/constants/colors';

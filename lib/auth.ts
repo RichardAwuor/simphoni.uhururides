@@ -3,17 +3,19 @@ import * as SecureStore from "expo-secure-store";
 import { Platform } from "react-native";
 import Constants from "expo-constants";
 
-const API_URL = "https://nf4zm6czzrgy3q3wc2m4tw4wehqtga8b.app.specular.dev";
+const API_URL =
+  Constants.expoConfig?.extra?.backendUrl ||
+  "https://cmxtxz868f7cxmeqqjzqkrqtsw5b4k47.app.specular.dev";
 
-export const BEARER_TOKEN_KEY = "nativelyapp_bearer_token";
+export const BEARER_TOKEN_KEY = "uhurueastafricais_bearer_token";
 
 const getPlugins = () => {
   if (Platform.OS === "web") return [];
   const { expoClient } = require("@better-auth/expo/client");
   return [
     expoClient({
-      scheme: "nativelyapp",
-      storagePrefix: "nativelyapp",
+      scheme: "uhurueastafricais",
+      storagePrefix: "uhurueastafricais",
       storage: SecureStore,
     }),
   ];

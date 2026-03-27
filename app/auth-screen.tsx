@@ -15,16 +15,16 @@ const LOGO = require('@/assets/images/bdc4a1e4-99be-444d-bc2e-af445de9d03c.png')
 import { useAuth } from '@/contexts/AuthContext';
 import { COLORS } from '@/constants/colors';
 import { AnimatedPressable } from '@/components/AnimatedPressable';
-import { Mail, Lock, Eye, EyeOff } from 'lucide-react-native';
+import { Mail, CheckCircle, XCircle } from 'lucide-react-native';
+import { router } from 'expo-router';
 
 export default function AuthScreen() {
   const { signInWithEmail, signUpWithEmail, signInWithApple, signInWithGoogle } = useAuth();
   const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
+  const [confirmEmail, setConfirmEmail] = useState('');
+  const [confirmTouched, setConfirmTouched] = useState(false);
   const [emailError, setEmailError] = useState('');
-  const [passwordError, setPasswordError] = useState('');
   const [loading, setLoading] = useState(false);
   const [socialLoading, setSocialLoading] = useState<'apple' | 'google' | null>(null);
   const [error, setError] = useState('');
@@ -46,25 +46,28 @@ export default function AuthScreen() {
     return true;
   };
 
-  const validatePassword = () => {
-    if (!password) { setPasswordError('Password is required'); return false; }
-    if (password.length < 6) { setPasswordError('Password must be at least 6 characters'); return false; }
-    setPasswordError('');
-    return true;
-  };
+  const emailsMatch = email.length > 0 && confirmEmail.length > 0 && email === confirmEmail;
+  const emailsMismatch = confirmTouched && confirmEmail.length > 0 && email !== confirmEmail;
+
+  const isSignUpDisabled = loading || !emailsMatch;
+  const isSignInDisabled = loading || !email;
 
   const handleEmailAuth = async () => {
     const emailOk = validateEmail();
-    const passOk = validatePassword();
-    if (!emailOk || !passOk) return;
+    if (!emailOk) return;
+    if (isSignUp && !emailsMatch) return;
+
     setLoading(true);
     setError('');
     console.log('[AuthScreen] Email auth pressed, isSignUp:', isSignUp, 'email:', email);
     try {
       if (isSignUp) {
-        await signUpWithEmail(email, password);
+        await signUpWithEmail(email, email);
+        console.log('[AuthScreen] Sign up successful, navigating to /welcome');
+        router.replace('/welcome');
       } else {
-        await signInWithEmail(email, password);
+        await signInWithEmail(email, email);
+        console.log('[AuthScreen] Sign in successful');
       }
     } catch (e: any) {
       console.error('[AuthScreen] Email auth error:', e);
@@ -105,15 +108,21 @@ export default function AuthScreen() {
   };
 
   const toggleMode = () => {
-    console.log('[AuthScreen] Toggle mode to:', !isSignUp ? 'sign up' : 'sign in');
-    setIsSignUp(!isSignUp);
+    const next = !isSignUp;
+    console.log('[AuthScreen] Toggle mode to:', next ? 'sign up' : 'sign in');
+    setIsSignUp(next);
     setError('');
     setEmailError('');
-    setPasswordError('');
+    setConfirmEmail('');
+    setConfirmTouched(false);
   };
 
-  const buttonLabel = isSignUp ? 'Create Account' : 'Sign In';
-  const toggleLabel = isSignUp ? 'Already have an account? Sign in' : "Don't have an account? Sign up";
+  const buttonLabel = isSignUp ? 'Continue' : 'Sign In';
+  const toggleLabel = isSignUp ? 'Already have an account? Sign in' : 'New here? Create account';
+  const headingLabel = isSignUp ? 'Create your account' : 'Welcome back';
+
+  const confirmIconColor = emailsMatch ? '#22c55e' : '#E63946';
+  const showConfirmIcon = confirmTouched && confirmEmail.length > 0;
 
   return (
     <KeyboardAvoidingView
@@ -180,7 +189,7 @@ export default function AuthScreen() {
               marginBottom: 24,
             }}
           >
-            {isSignUp ? 'Create your account' : 'Welcome back'}
+            {headingLabel}
           </Text>
 
           {/* Email */}
@@ -226,49 +235,61 @@ export default function AuthScreen() {
             ) : null}
           </View>
 
-          {/* Password */}
-          <View style={{ marginBottom: 24 }}>
-            <Text style={{ fontSize: 13, fontWeight: '600', color: COLORS.textSecondary, fontFamily: 'Nunito_600SemiBold', marginBottom: 6 }}>
-              Password
-            </Text>
-            <View
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                backgroundColor: COLORS.surface,
-                borderRadius: 12,
-                borderWidth: 1.5,
-                borderColor: passwordError ? COLORS.danger : COLORS.border,
-                paddingHorizontal: 14,
-                height: 52,
-              }}
-            >
-              <Lock size={18} color={COLORS.textTertiary} />
-              <TextInput
-                value={password}
-                onChangeText={setPassword}
-                onBlur={validatePassword}
-                placeholder="At least 6 characters"
-                placeholderTextColor={COLORS.textTertiary}
-                secureTextEntry={!showPassword}
-                style={{
-                  flex: 1,
-                  marginLeft: 10,
-                  fontSize: 15,
-                  color: COLORS.text,
-                  fontFamily: 'Nunito_400Regular',
-                }}
-              />
-              <AnimatedPressable onPress={() => setShowPassword(!showPassword)}>
-                {showPassword ? <EyeOff size={18} color={COLORS.textTertiary} /> : <Eye size={18} color={COLORS.textTertiary} />}
-              </AnimatedPressable>
-            </View>
-            {passwordError ? (
-              <Text style={{ fontSize: 12, color: COLORS.danger, fontFamily: 'Nunito_400Regular', marginTop: 4 }}>
-                {passwordError}
+          {/* Confirm Email — sign up only */}
+          {isSignUp ? (
+            <View style={{ marginBottom: 24 }}>
+              <Text style={{ fontSize: 13, fontWeight: '600', color: COLORS.textSecondary, fontFamily: 'Nunito_600SemiBold', marginBottom: 6 }}>
+                Confirm email address
               </Text>
-            ) : null}
-          </View>
+              <View
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  backgroundColor: COLORS.surface,
+                  borderRadius: 12,
+                  borderWidth: 1.5,
+                  borderColor: emailsMismatch ? COLORS.danger : emailsMatch ? '#22c55e' : COLORS.border,
+                  paddingHorizontal: 14,
+                  height: 52,
+                }}
+              >
+                <Mail size={18} color={COLORS.textTertiary} />
+                <TextInput
+                  value={confirmEmail}
+                  onChangeText={(val) => {
+                    setConfirmEmail(val);
+                    if (!confirmTouched && val.length > 0) setConfirmTouched(true);
+                  }}
+                  placeholder="Re-enter your email"
+                  placeholderTextColor={COLORS.textTertiary}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  style={{
+                    flex: 1,
+                    marginLeft: 10,
+                    fontSize: 15,
+                    color: COLORS.text,
+                    fontFamily: 'Nunito_400Regular',
+                  }}
+                />
+                {showConfirmIcon ? (
+                  emailsMatch ? (
+                    <CheckCircle size={20} color={confirmIconColor} />
+                  ) : (
+                    <XCircle size={20} color={confirmIconColor} />
+                  )
+                ) : null}
+              </View>
+              {emailsMismatch ? (
+                <Text style={{ fontSize: 12, color: COLORS.danger, fontFamily: 'Nunito_400Regular', marginTop: 4 }}>
+                  Emails do not match
+                </Text>
+              ) : null}
+            </View>
+          ) : (
+            <View style={{ marginBottom: 24 }} />
+          )}
 
           {/* Error */}
           {error ? (
@@ -291,15 +312,15 @@ export default function AuthScreen() {
           {/* Primary button */}
           <AnimatedPressable
             onPress={handleEmailAuth}
-            disabled={loading}
+            disabled={isSignUp ? isSignUpDisabled : isSignInDisabled}
             style={{
-              backgroundColor: COLORS.primary,
+              backgroundColor: (isSignUp ? isSignUpDisabled : isSignInDisabled) ? COLORS.border : COLORS.primary,
               borderRadius: 14,
               height: 52,
               alignItems: 'center',
               justifyContent: 'center',
               marginBottom: 16,
-              boxShadow: '0 4px 16px rgba(245,197,24,0.35)',
+              boxShadow: (isSignUp ? isSignUpDisabled : isSignInDisabled) ? undefined : '0 4px 16px rgba(245,197,24,0.35)',
             }}
           >
             {loading ? (

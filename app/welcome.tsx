@@ -5,6 +5,7 @@ import {
   ScrollView,
   SafeAreaView,
 } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
 import { Image } from 'expo-image';
 
 const LOGO = require('@/assets/images/affbe497-25f0-4e5b-afa0-fdb877dfaf49.png');
@@ -48,6 +49,8 @@ export default function WelcomeScreen() {
   };
 
   return (
+    <View style={{ flex: 1, backgroundColor: '#FFF8E1' }}>
+    <StatusBar style="dark" backgroundColor="#FFF8E1" />
     <SafeAreaView style={{ flex: 1, backgroundColor: '#FFF8E1' }}>
       <ScrollView
         style={{ backgroundColor: '#FFF8E1' }}
@@ -241,5 +244,6 @@ export default function WelcomeScreen() {
         </AnimatedPressable>
       </ScrollView>
     </SafeAreaView>
+    </View>
   );
 }

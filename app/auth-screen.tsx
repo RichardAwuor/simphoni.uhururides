@@ -9,6 +9,7 @@ import {
   Animated,
   ActivityIndicator,
 } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
 import { Image } from 'expo-image';
 
 const LOGO = require('@/assets/images/affbe497-25f0-4e5b-afa0-fdb877dfaf49.png');
@@ -125,6 +126,8 @@ export default function AuthScreen() {
   const showConfirmIcon = confirmTouched && confirmEmail.length > 0;
 
   return (
+    <View style={{ flex: 1, backgroundColor: '#1A1A1A' }}>
+    <StatusBar style="light" backgroundColor="#1A1A1A" />
     <KeyboardAvoidingView
       style={{ flex: 1, backgroundColor: COLORS.background }}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -406,5 +409,6 @@ export default function AuthScreen() {
         </Animated.View>
       </ScrollView>
     </KeyboardAvoidingView>
+    </View>
   );
 }

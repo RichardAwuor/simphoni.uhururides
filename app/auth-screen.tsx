@@ -12,7 +12,7 @@ import {
 import { StatusBar } from 'expo-status-bar';
 import { Image } from 'expo-image';
 
-const LOGO = require('@/assets/images/8dd57f65-4869-4907-8925-0d381987122d.png');
+const LOGO = require('@/assets/images/253887a8-e31b-40cd-9be6-6c2fb8849bc4.png');
 import { useAuth } from '@/contexts/AuthContext';
 import { COLORS } from '@/constants/colors';
 import { AnimatedPressable } from '@/components/AnimatedPressable';

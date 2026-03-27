@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "Uhuru-Rides",
-    "slug": "uhuru-rides",
+    "name": "uhuru-east-africa-is",
+    "slug": "uhuru-east-africa-is",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -35,7 +35,7 @@
       "expo-web-browser",
       "expo-secure-store"
     ],
-    "scheme": "nativelyapp",
+    "scheme": "uhurueastafricais",
     "experiments": {
       "typedRoutes": true
     },

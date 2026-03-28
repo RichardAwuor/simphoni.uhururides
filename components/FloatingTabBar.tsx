@@ -12,6 +12,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { IconSymbol } from '@/components/IconSymbol';
 import { BlurView } from 'expo-blur';
 import { useTheme } from '@react-navigation/native';
+import { COLORS } from '@/constants/colors';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -186,13 +187,13 @@ export default function FloatingTabBar({
                       android_material_icon_name={tab.icon}
                       ios_icon_name={tab.icon}
                       size={24}
-                      color={isActive ? theme.colors.primary : (theme.dark ? '#98989D' : '#000000')}
+                      color={isActive ? COLORS.primary : (theme.dark ? '#98989D' : '#000000')}
                     />
                     <Text
                       style={[
                         styles.tabLabel,
                         { color: theme.dark ? '#98989D' : '#8E8E93' },
-                        isActive && { color: theme.colors.primary, fontWeight: '600' },
+                        isActive && { color: COLORS.primary, fontWeight: '600' },
                       ]}
                     >
                       {tab.label}

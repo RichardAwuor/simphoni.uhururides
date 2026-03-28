@@ -521,10 +521,11 @@ export default function RidesScreen() {
     );
   }
 
+  const normalizeRole = (val: any) => typeof val === 'string' ? val.toLowerCase() : '';
   const isDriver =
-    profile?.role === 'driver' ||
-    (profile as any)?.user_type === 'driver' ||
-    (profile as any)?.user_role === 'driver';
+    normalizeRole(profile?.role) === 'driver' ||
+    normalizeRole((profile as any)?.user_type) === 'driver' ||
+    normalizeRole((profile as any)?.user_role) === 'driver';
 
   console.log('[RidesScreen] role-branch — role:', profile?.role, 'isDriver:', isDriver);
 

@@ -5,14 +5,14 @@ import { apiGet } from '@/utils/api';
 export interface Profile {
   id: string;
   user_id: string;
+  /** Backend returns "role" field with values "rider" | "driver" */
+  role: 'driver' | 'rider';
+  /** Alias for role — kept for backward compat */
   user_type: 'driver' | 'rider';
-  first_name: string;
-  last_name: string;
-  resident_district: string;
-  country: string;
-  language: string;
-  mobile_number?: string;
-  profile_picture_url?: string;
+  name: string;
+  email: string;
+  phone?: string;
+  city?: string;
   created_at: string;
 }
 
@@ -48,18 +48,20 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
       return;
     }
     setProfileLoading(true);
+    console.log('[ProfileContext] Fetching profile for user:', user.id);
     try {
-      const data = await apiGet<Profile>('/api/profiles/me');
-      setProfile(data);
-      if (data.user_type === 'driver') {
-        try {
-          const dd = await apiGet<DriverDetails>('/api/driver/details');
-          setDriverDetails(dd);
-        } catch {
-          setDriverDetails(null);
-        }
-      }
-    } catch {
+      const raw = await apiGet<any>('/api/profile');
+      console.log('[ProfileContext] Profile fetched:', raw);
+      // Normalize: backend returns "role", alias it as user_type for compat
+      const normalized: Profile = {
+        ...raw,
+        role: raw.role ?? raw.user_type,
+        user_type: raw.role ?? raw.user_type,
+      };
+      setProfile(normalized);
+      setDriverDetails(null);
+    } catch (e) {
+      console.error('[ProfileContext] Failed to fetch profile:', e);
       setProfile(null);
     } finally {
       setProfileLoading(false);

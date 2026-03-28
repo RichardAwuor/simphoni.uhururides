@@ -108,6 +108,7 @@ export function register(app: App, fastify: FastifyInstance) {
             first_name: { type: 'string' },
             last_name: { type: 'string' },
             resident_district: { type: 'string' },
+            phone: { type: ['string', 'null'] },
             mobile_number: { type: ['string', 'null'] },
             country: { type: 'string' },
             language: { type: 'string' },
@@ -181,7 +182,7 @@ export function register(app: App, fastify: FastifyInstance) {
       app.logger.info({ userId: session.user.id, profileId: profile.id }, 'Profile upserted successfully');
       return reply.send({
         ...profile,
-        mobile_number: profile.phone || profile.mobile_number,
+        phone: profile.phone || profile.mobile_number,
       });
     } catch (error) {
       app.logger.error({ err: error, userId: session.user.id, body: request.body }, 'Failed to upsert profile');

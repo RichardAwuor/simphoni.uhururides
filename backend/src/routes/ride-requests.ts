@@ -25,26 +25,102 @@ async function findNearestDriver(
     'Finding nearest driver'
   );
 
-  // Query all drivers first
-  const allProfiles = await app.db.query.profiles.findMany({
-    where: eq(schema.profiles.user_type, 'driver'),
+  // Query all profiles and filter for drivers in code
+  let allProfiles: any[] = [];
+  try {
+    allProfiles = await app.db.select().from(schema.profiles);
+
+    app.logger.debug(
+      {
+        totalProfiles: allProfiles.length,
+        sampleProfile: allProfiles[0] ? JSON.stringify(allProfiles[0]) : null,
+      },
+      'All profile data from select query'
+    );
+  } catch (err) {
+    app.logger.warn({ err }, 'Error querying with select, trying query builder');
+    try {
+      allProfiles = await app.db.query.profiles.findMany();
+      app.logger.debug(
+        {
+          totalProfiles: allProfiles.length,
+          sampleProfile: allProfiles[0] ? JSON.stringify(allProfiles[0]) : null,
+        },
+        'Profile data from findMany query'
+      );
+    } catch (err2) {
+      app.logger.error({ err: err2 }, 'Failed to query profiles');
+      return null;
+    }
+  }
+
+  // Filter for drivers - check both user_type and role fields for compatibility
+  const driverProfiles = allProfiles.filter((p) => {
+    // Handle both string and potential enum values
+    let userType = '';
+    let role = '';
+
+    // Check user_type field
+    if (p.user_type) {
+      // Handle both direct string and potential enum object
+      if (typeof p.user_type === 'string') {
+        userType = p.user_type.toLowerCase().trim();
+      } else {
+        userType = String(p.user_type).toLowerCase().trim();
+      }
+    }
+
+    // Check role field
+    if (p.role) {
+      if (typeof p.role === 'string') {
+        role = p.role.toLowerCase().trim();
+      } else {
+        role = String(p.role).toLowerCase().trim();
+      }
+    }
+
+    // Consider a profile as driver if either user_type or role is 'driver'
+    const isDriver = userType === 'driver' || role === 'driver';
+
+    if (!isDriver && (p.user_type || p.role)) {
+      app.logger.debug(
+        {
+          user_id: p.user_id,
+          user_type_raw: p.user_type,
+          user_type_type: typeof p.user_type,
+          user_type_str: userType,
+          role_raw: p.role,
+          role_type: typeof p.role,
+          role_str: role,
+        },
+        'Profile not matched as driver'
+      );
+    }
+
+    return isDriver;
   });
 
   app.logger.debug(
-    { totalProfiles: allProfiles.length, profileIds: allProfiles.map((p) => p.user_id), riderUserId },
+    {
+      totalProfiles: allProfiles.length,
+      driverProfiles: driverProfiles.length,
+      driverIds: driverProfiles.map((p) => String(p.user_id)),
+      riderUserId,
+    },
     'Found all driver profiles'
   );
 
   // Filter for valid drivers: not the rider, not muted, not in exclude list
-  const drivers = allProfiles.filter((d) => {
-    const isRider = d.user_id === riderUserId;
+  const drivers = driverProfiles.filter((d) => {
+    const userId = String(d.user_id || '');
+    const isRider = userId === riderUserId;
     const isMuted = d.muted === true;
-    const isExcluded = excludeDriverIds.includes(d.user_id);
+    const isExcluded = excludeDriverIds.includes(userId);
     const isValid = !isRider && !isMuted && !isExcluded;
 
     if (!isValid) {
       app.logger.debug(
-        { userId: d.user_id, isRider, isMuted, isExcluded },
+        { userId, isRider, isMuted, isExcluded },
         'Filtering out driver'
       );
     }
@@ -61,7 +137,7 @@ async function findNearestDriver(
 
   // Filter drivers with valid location
   const driversWithLocation = drivers.filter(
-    (d) => d.pickup_lat !== null && d.pickup_lng !== null
+    (d) => Number(d.pickup_lat) && Number(d.pickup_lng)
   );
 
   // If we have drivers with location, find closest
@@ -70,16 +146,16 @@ async function findNearestDriver(
     let minDistance = distanceSquared(
       pickupLat,
       pickupLng,
-      nearest.pickup_lat!,
-      nearest.pickup_lng!
+      Number(nearest.pickup_lat),
+      Number(nearest.pickup_lng)
     );
 
     for (const driver of driversWithLocation.slice(1)) {
       const distance = distanceSquared(
         pickupLat,
         pickupLng,
-        driver.pickup_lat!,
-        driver.pickup_lng!
+        Number(driver.pickup_lat),
+        Number(driver.pickup_lng)
       );
       if (distance < minDistance) {
         minDistance = distance;
@@ -91,7 +167,10 @@ async function findNearestDriver(
       { driverId: nearest.user_id, distance: Math.sqrt(minDistance) },
       'Found nearest driver with location'
     );
-    return nearest;
+    return {
+      user_id: String(nearest.user_id),
+      first_name: String(nearest.first_name || ''),
+    };
   }
 
   // If no drivers with location, return first available
@@ -99,7 +178,10 @@ async function findNearestDriver(
     { driverId: drivers[0].user_id },
     'No drivers with location, returning first available'
   );
-  return drivers[0];
+  return {
+    user_id: String(drivers[0].user_id),
+    first_name: String(drivers[0].first_name || ''),
+  };
 }
 
 // Helper: Format ride request response (maps price_offer to offered_price)

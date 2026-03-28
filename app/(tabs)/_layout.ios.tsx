@@ -16,10 +16,6 @@ export default function TabLayout() {
         <Icon sf="car.fill" />
         <Label>{t('rides')}</Label>
       </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="requests">
-        <Icon sf="list.bullet" />
-        <Label>{t('requests')}</Label>
-      </NativeTabs.Trigger>
       <NativeTabs.Trigger name="profile">
         <Icon sf="person.fill" />
         <Label>{t('profile')}</Label>

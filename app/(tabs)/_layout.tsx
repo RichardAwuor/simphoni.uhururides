@@ -18,12 +18,6 @@ export default function TabLayout() {
       label: t('rides'),
     },
     {
-      name: 'requests',
-      route: '/(tabs)/requests' as const,
-      icon: 'list-alt' as const,
-      label: t('requests'),
-    },
-    {
       name: 'profile',
       route: '/(tabs)/profile' as const,
       icon: 'person' as const,
@@ -35,7 +29,6 @@ export default function TabLayout() {
     <View style={{ flex: 1, backgroundColor: COLORS.background }}>
       <Stack screenOptions={{ headerShown: false, animation: 'none' }}>
         <Stack.Screen name="(home)" />
-        <Stack.Screen name="requests" />
         <Stack.Screen name="profile" />
       </Stack>
       <FloatingTabBar tabs={tabs} containerWidth={320} />

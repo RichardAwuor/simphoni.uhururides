@@ -193,10 +193,11 @@ function RoleBadge({ role }: { role?: 'driver' | 'rider' | null }) {
 function ProfileHeaderCard({ profile, authEmail }: { profile: ApiProfile; authEmail?: string }) {
   const phoneDisplay = profile.phone || profile.mobile_number || null;
   const emailDisplay = profile.email || authEmail || null;
+  const nameDisplay = profile.full_name || emailDisplay?.split('@')[0] || '—';
   return (
     <View style={CARD_STYLE}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
-        <AvatarCircle name={profile.full_name} />
+        <AvatarCircle name={nameDisplay} />
         <View style={{ flex: 1, gap: 6 }}>
           <Text
             style={{
@@ -206,7 +207,7 @@ function ProfileHeaderCard({ profile, authEmail }: { profile: ApiProfile; authEm
               fontFamily: 'Nunito_700Bold',
             }}
           >
-            {profile.full_name || '—'}
+            {nameDisplay}
           </Text>
           <RoleBadge role={profile.role} />
         </View>
@@ -559,7 +560,7 @@ function SignOutButton() {
       onPress={handleSignOut}
       disabled={signingOut}
       style={{
-        backgroundColor: 'rgba(239,68,68,0.1)',
+        backgroundColor: 'rgba(245,197,24,0.12)',
         borderRadius: 14,
         height: 52,
         flexDirection: 'row',
@@ -567,21 +568,21 @@ function SignOutButton() {
         justifyContent: 'center',
         gap: 8,
         borderWidth: 1,
-        borderColor: '#EF4444',
+        borderColor: '#F5C518',
         marginTop: 4,
         marginBottom: 8,
       }}
     >
       {signingOut ? (
-        <ActivityIndicator color="#EF4444" />
+        <ActivityIndicator color="#F5C518" />
       ) : (
         <>
-          <LogOut size={18} color="#EF4444" />
+          <LogOut size={18} color="#1A1A1A" />
           <Text
             style={{
               fontSize: 15,
               fontWeight: '700',
-              color: '#EF4444',
+              color: '#1A1A1A',
               fontFamily: 'Nunito_700Bold',
             }}
           >
@@ -940,19 +941,21 @@ export default function ProfileScreen() {
     setError(null);
     try {
       const raw = await apiGet<any>('/api/profiles/me');
-      console.log('[ProfileScreen] Profile raw response — phone:', raw.phone, 'mobile_number:', raw.mobile_number, 'phone_number:', raw.phone_number);
-      // Normalize role: backend may return user_type instead of role
-      const normalizedRole: 'rider' | 'driver' = raw.role ?? raw.user_type ?? 'rider';
-      // Normalize phone: try all possible field names the backend may return
+      console.log('[ProfileScreen] Profile raw response — phone:', raw.phone, 'mobile_number:', raw.mobile_number, 'phone_number:', raw.phone_number, 'name:', raw.name, 'full_name:', raw.full_name);
+      const normalizedName: string = raw.full_name || raw.name ||
+        ((raw.first_name || raw.last_name) ? `${raw.first_name || ''} ${raw.last_name || ''}`.trim() : '');
       const normalizedPhone: string = raw.phone || raw.mobile_number || raw.phone_number || '';
+      const normalizedRole: 'rider' | 'driver' =
+        ((raw.role ?? raw.user_type ?? '') as string).toLowerCase() === 'driver' ? 'driver' : 'rider';
       const data: ApiProfile = {
         ...raw,
+        full_name: normalizedName,
         role: normalizedRole,
         user_type: normalizedRole,
         phone: normalizedPhone,
-        mobile_number: raw.mobile_number || raw.phone || raw.phone_number || '',
+        mobile_number: normalizedPhone,
       };
-      console.log('[ProfileScreen] Profile normalized — role:', data.role, 'phone:', data.phone, 'mobile_number:', data.mobile_number);
+      console.log('[ProfileScreen] Profile normalized — role:', data.role, 'full_name:', data.full_name, 'phone:', data.phone);
       setProfile(data);
     } catch (e: any) {
       console.error('[ProfileScreen] Profile fetch failed:', e);

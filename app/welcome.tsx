@@ -16,7 +16,7 @@ import { COLORS } from '@/constants/colors';
 import { AnimatedPressable } from '@/components/AnimatedPressable';
 import { Car, User, ChevronDown, Check } from 'lucide-react-native';
 
-const LOGO = require('../assets/images/3d98049b-3879-48ac-91c0-1b5125f0c158.png');
+const LOGO = require('../assets/images/9829a994-e39e-4ffe-a130-d61d8cab00e2.png');
 
 type UserType = 'driver' | 'rider';
 
@@ -181,8 +181,8 @@ export default function WelcomeScreen() {
   };
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#F5C842' }}>
-      <StatusBar style="dark" backgroundColor="#F5C842" />
+    <View style={{ flex: 1, backgroundColor: '#FAF7F0' }}>
+      <StatusBar style="dark" />
 
       <SelectorModal
         visible={countryModalOpen}
@@ -211,12 +211,34 @@ export default function WelcomeScreen() {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        {/* Logo */}
+        {/* Hero */}
         <View style={{ alignItems: 'center', marginBottom: 40 }}>
           <Image
             source={LOGO}
-            style={{ width: '100%', aspectRatio: 1, resizeMode: 'contain' }}
+            style={{ width: 120, height: 120, resizeMode: 'contain', marginBottom: 20 }}
           />
+          <Text
+            style={{
+              fontSize: 34,
+              fontWeight: '800',
+              color: COLORS.text,
+              fontFamily: 'Nunito_800ExtraBold',
+              textAlign: 'center',
+              marginBottom: 8,
+            }}
+          >
+            Uhuru-Rides
+          </Text>
+          <Text
+            style={{
+              fontSize: 16,
+              color: COLORS.textSecondary,
+              fontFamily: 'Nunito_400Regular',
+              textAlign: 'center',
+            }}
+          >
+            Your ride, your price
+          </Text>
         </View>
 
         {/* Country Selector */}

@@ -14,16 +14,18 @@ import { apiGet } from '@/utils/api';
 import { COLORS } from '@/constants/colors';
 import { AnimatedPressable } from '@/components/AnimatedPressable';
 import { StatCard } from '@/components/StatCard';
-import { LogOut } from 'lucide-react-native';
+import { LogOut, Phone, Mail } from 'lucide-react-native';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface ApiProfile {
   id: string;
   full_name: string;
-  phone: string;
+  phone?: string;
+  mobile_number?: string;
   email: string;
-  role: 'rider' | 'driver';
+  role?: 'rider' | 'driver';
+  user_type?: 'rider' | 'driver';
   vehicle_make: string | null;
   vehicle_model: string | null;
   license_plate: string | null;
@@ -219,7 +221,7 @@ function ProfileHeaderCard({ profile, authEmail }: { profile: ApiProfile; authEm
         }}
       >
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-          <Text style={{ fontSize: 15 }}>📞</Text>
+          <Phone size={16} color="#F5C518" />
           <Text
             style={{
               fontSize: 14,
@@ -231,7 +233,7 @@ function ProfileHeaderCard({ profile, authEmail }: { profile: ApiProfile; authEm
           </Text>
         </View>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-          <Text style={{ fontSize: 15 }}>✉️</Text>
+          <Mail size={16} color="#F5C518" />
           <Text
             style={{
               fontSize: 14,
@@ -937,8 +939,19 @@ export default function ProfileScreen() {
     setLoading(true);
     setError(null);
     try {
-      const data = await apiGet<ApiProfile>('/api/profile');
-      console.log('[ProfileScreen] Profile loaded, role:', data.role);
+      const raw = await apiGet<any>('/api/profile');
+      console.log('[ProfileScreen] Profile raw response:', raw);
+      // Normalize role: backend may return user_type instead of role
+      const normalizedRole: 'rider' | 'driver' = raw.role ?? raw.user_type ?? 'rider';
+      // Normalize phone: backend may return mobile_number instead of phone
+      const normalizedPhone: string = raw.phone || raw.mobile_number || '';
+      const data: ApiProfile = {
+        ...raw,
+        role: normalizedRole,
+        user_type: normalizedRole,
+        phone: normalizedPhone,
+      };
+      console.log('[ProfileScreen] Profile normalized — role:', data.role, 'phone:', data.phone);
       setProfile(data);
     } catch (e: any) {
       console.error('[ProfileScreen] Profile fetch failed:', e);

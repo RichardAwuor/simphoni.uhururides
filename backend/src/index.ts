@@ -1,5 +1,5 @@
 import { createApplication } from "@specific-dev/framework";
-import { sql } from 'drizzle-orm';
+import { sql, eq, or, isNull, and } from 'drizzle-orm';
 import * as appSchema from './db/schema/schema.js';
 import * as authSchema from './db/schema/auth-schema.js';
 import * as profilesRoutes from './routes/profiles.js';
@@ -35,6 +35,43 @@ try {
   app.logger.info('Phone column migration completed successfully');
 } catch (error) {
   app.logger.warn({ err: error }, 'Phone column migration encountered an issue (may be normal if columns already synced)');
+}
+
+// Data migration: seed driver profiles with Nairobi coordinates
+try {
+  app.logger.info('Running driver location seeding...');
+
+  // Get all driver profiles without coordinates
+  const drivers = await app.db.query.profiles.findMany({
+    where: and(
+      eq(appSchema.profiles.user_type, 'driver'),
+      or(
+        isNull(appSchema.profiles.pickup_lat),
+        isNull(appSchema.profiles.pickup_lng)
+      )
+    ),
+  });
+
+  const coordinates = [
+    { lat: 1.2921, lng: 36.8219 },
+    { lat: 1.3031, lng: 36.8100 },
+    { lat: 1.2800, lng: 36.8350 },
+    { lat: 1.2650, lng: 36.8000 },
+  ];
+
+  for (let i = 0; i < drivers.length; i++) {
+    const coord = coordinates[i % coordinates.length];
+    await app.db.update(appSchema.profiles)
+      .set({
+        pickup_lat: coord.lat,
+        pickup_lng: coord.lng,
+      })
+      .where(eq(appSchema.profiles.user_id, drivers[i].user_id));
+  }
+
+  app.logger.info({ driverCount: drivers.length }, 'Driver location seeding completed');
+} catch (error) {
+  app.logger.warn({ err: error }, 'Driver location seeding encountered an issue (may be normal if already seeded)');
 }
 
 // Register routes - add your route modules here

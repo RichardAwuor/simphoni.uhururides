@@ -29,6 +29,9 @@ export const profiles = pgTable('profiles', {
   vehicle_model: text('vehicle_model'),
   license_plate: text('license_plate'),
   national_id: text('national_id'),
+  muted: boolean('muted').default(false),
+  pickup_lat: real('pickup_lat'),
+  pickup_lng: real('pickup_lng'),
   created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 });
 
@@ -62,6 +65,8 @@ export const ride_requests = pgTable('ride_requests', {
   destination_lng: real('destination_lng'),
   distance_km: real('distance_km'),
   price_offer: real('price_offer').notNull(),
+  offered_price: real('offered_price'),
+  final_price: real('final_price'),
   currency: currencyEnum('currency').notNull(),
   bargain_price: real('bargain_price'),
   bargain_percent: integer('bargain_percent'),
@@ -74,6 +79,18 @@ export const ride_requests = pgTable('ride_requests', {
   driver_attempt_count: integer('driver_attempt_count').notNull().default(0),
   created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
+// Ride request attempts table
+export const ride_request_attempts = pgTable('ride_request_attempts', {
+  id: text('id').primaryKey(),
+  ride_request_id: text('ride_request_id').notNull().references(() => ride_requests.id, { onDelete: 'cascade' }),
+  driver_id: text('driver_id').notNull(),
+  action: text('action').notNull(),
+  bargain_percent: integer('bargain_percent'),
+  bargain_price: real('bargain_price'),
+  rider_response: text('rider_response'),
+  created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 });
 
 // Driver ride actions table

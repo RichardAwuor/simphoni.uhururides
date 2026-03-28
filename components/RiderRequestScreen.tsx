@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   StyleSheet,
   Animated,
+  Modal,
   Image,
   ImageSourcePropType,
   KeyboardAvoidingView,
@@ -17,7 +18,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Location from 'expo-location';
 import { Car, Zap, Bike, MapPin, Flag, ChevronLeft, ChevronRight, CheckCircle, XCircle } from 'lucide-react-native';
 import { AnimatedPressable } from '@/components/AnimatedPressable';
-import { apiPost, apiGet, apiDelete } from '@/utils/api';
+import { apiPost, apiGet } from '@/utils/api';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -36,16 +37,29 @@ type VehicleType = 'car' | 'tuktuk' | 'motorbike';
 interface LatLng { lat: number; lng: number }
 interface NominatimResult { display_name: string; lat: string; lon: string }
 
-interface MyRideRequest {
+interface RideRequestResponse {
   id: string;
   status: string;
   vehicle_type?: string;
-  pickup_address?: string;
-  destination_address?: string;
+  pickup_location?: string;
+  destination?: string;
   distance_km?: number;
-  price_offer?: number;
+  offered_price?: number;
   currency?: string;
-  bargain_price?: number;
+  final_price?: number | null;
+}
+
+interface BargainAttempt {
+  id: string;
+  ride_request_id: string;
+  bargain_percent: number;
+  bargain_price: number;
+  status: string;
+}
+
+interface RiderCurrentResponse {
+  ride_request: RideRequestResponse | null;
+  pending_bargain: BargainAttempt | null;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -210,11 +224,11 @@ const ai = StyleSheet.create({
 
 // ─── Step 1: Vehicle Type ─────────────────────────────────────────────────────
 
-interface VehicleCardProps {
+type VehicleCardProps = {
   type: VehicleType;
   selected: boolean;
   onPress: () => void;
-}
+};
 
 const VEHICLE_INFO: Record<VehicleType, { label: string; desc: string; Icon: any }> = {
   car: { label: 'Car', desc: 'Comfortable sedan or SUV for up to 4 passengers', Icon: Car },
@@ -263,6 +277,219 @@ const vc = StyleSheet.create({
   desc: { fontSize: 12, color: TEXT_SECONDARY, fontFamily: 'Nunito_400Regular', marginTop: 2, lineHeight: 16 },
 });
 
+// ─── Bargain Modal (for rider) ────────────────────────────────────────────────
+
+interface BargainModalProps {
+  rideId: string;
+  bargain: BargainAttempt;
+  currency: string;
+  originalPrice: number;
+  onResponded: (accepted: boolean) => void;
+}
+
+function RiderBargainModal({ rideId, bargain, currency, originalPrice, onResponded }: BargainModalProps) {
+  const [responding, setResponding] = useState(false);
+
+  const handleResponse = async (response: 'accepted' | 'rejected') => {
+    console.log('[RiderBargainModal] Bargain response pressed — response:', response, 'rideId:', rideId);
+    setResponding(true);
+    try {
+      await apiPost(`/api/ride-requests/${rideId}/bargain-response`, { response });
+      console.log('[RiderBargainModal] Bargain response sent:', response);
+      onResponded(response === 'accepted');
+    } catch (e) {
+      console.error('[RiderBargainModal] Bargain response failed:', e);
+    } finally {
+      setResponding(false);
+    }
+  };
+
+  const bargainPriceText = `${currency} ${Number(bargain.bargain_price).toLocaleString()}`;
+  const originalPriceText = `${currency} ${Number(originalPrice).toLocaleString()}`;
+  const percentText = `+${bargain.bargain_percent}%`;
+
+  return (
+    <Modal visible transparent animationType="slide" onRequestClose={() => {}}>
+      <View style={bm.overlay}>
+        <View style={bm.card}>
+          <Text style={bm.title}>Driver Counter-Offer</Text>
+          <View style={bm.priceRow}>
+            <View style={bm.priceBox}>
+              <Text style={bm.priceLabel}>Your Offer</Text>
+              <Text style={bm.originalPrice}>{originalPriceText}</Text>
+            </View>
+            <View style={bm.arrow}>
+              <Text style={bm.arrowText}>→</Text>
+            </View>
+            <View style={bm.priceBox}>
+              <Text style={bm.priceLabel}>Driver Asks</Text>
+              <Text style={bm.bargainPrice}>{bargainPriceText}</Text>
+            </View>
+          </View>
+          <View style={bm.percentBadge}>
+            <Text style={bm.percentText}>{percentText} increase</Text>
+          </View>
+          <Text style={bm.subtitle}>Do you accept the driver's counter-offer?</Text>
+          <View style={bm.btnRow}>
+            <AnimatedPressable
+              onPress={() => handleResponse('rejected')}
+              disabled={responding}
+              style={[bm.btnReject, responding && bm.btnDisabled]}
+            >
+              {responding ? (
+                <ActivityIndicator color="#fff" size="small" />
+              ) : (
+                <>
+                  <XCircle size={16} color="#fff" />
+                  <Text style={bm.btnRejectText}>Reject</Text>
+                </>
+              )}
+            </AnimatedPressable>
+            <AnimatedPressable
+              onPress={() => handleResponse('accepted')}
+              disabled={responding}
+              style={[bm.btnAccept, responding && bm.btnDisabled]}
+            >
+              {responding ? (
+                <ActivityIndicator color="#fff" size="small" />
+              ) : (
+                <>
+                  <CheckCircle size={16} color="#fff" />
+                  <Text style={bm.btnAcceptText}>Accept</Text>
+                </>
+              )}
+            </AnimatedPressable>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+const bm = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    justifyContent: 'flex-end',
+  },
+  card: {
+    backgroundColor: CARD_BG,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 28,
+    paddingBottom: 40,
+    alignItems: 'center',
+    gap: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 16,
+    elevation: 12,
+  },
+  title: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: TEXT,
+    fontFamily: 'Nunito_800ExtraBold',
+    textAlign: 'center',
+  },
+  priceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    width: '100%',
+    justifyContent: 'center',
+  },
+  priceBox: {
+    alignItems: 'center',
+    gap: 4,
+    flex: 1,
+  },
+  priceLabel: {
+    fontSize: 12,
+    color: TEXT_SECONDARY,
+    fontFamily: 'Nunito_400Regular',
+  },
+  originalPrice: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: TEXT_SECONDARY,
+    fontFamily: 'Nunito_700Bold',
+    textDecorationLine: 'line-through',
+  },
+  bargainPrice: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: '#B8860B',
+    fontFamily: 'Nunito_800ExtraBold',
+  },
+  arrow: {
+    paddingHorizontal: 4,
+  },
+  arrowText: {
+    fontSize: 20,
+    color: TEXT_SECONDARY,
+  },
+  percentBadge: {
+    backgroundColor: 'rgba(245,197,24,0.15)',
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(245,197,24,0.35)',
+  },
+  percentText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#B8860B',
+    fontFamily: 'Nunito_700Bold',
+  },
+  subtitle: {
+    fontSize: 14,
+    color: TEXT_SECONDARY,
+    fontFamily: 'Nunito_400Regular',
+    textAlign: 'center',
+  },
+  btnRow: {
+    flexDirection: 'row',
+    gap: 12,
+    width: '100%',
+  },
+  btnReject: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: '#EF4444',
+    borderRadius: 14,
+    paddingVertical: 14,
+  },
+  btnRejectText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#fff',
+    fontFamily: 'Nunito_700Bold',
+  },
+  btnAccept: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: '#22C55E',
+    borderRadius: 14,
+    paddingVertical: 14,
+  },
+  btnAcceptText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#fff',
+    fontFamily: 'Nunito_700Bold',
+  },
+  btnDisabled: { opacity: 0.4 },
+});
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function RiderRequestScreen() {
@@ -288,12 +515,9 @@ export default function RiderRequestScreen() {
   // Waiting / polling
   const [rideId, setRideId] = useState<string | null>(null);
   const [rideStatus, setRideStatus] = useState<string | null>(null);
-  const [rideData, setRideData] = useState<MyRideRequest | null>(null);
-  const [cancelling, setCancelling] = useState(false);
-  const [bargainCountdown, setBargainCountdown] = useState(5);
-  const [bargainResponding, setBargainResponding] = useState(false);
+  const [rideData, setRideData] = useState<RideRequestResponse | null>(null);
+  const [pendingBargain, setPendingBargain] = useState<BargainAttempt | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
   // Derived
@@ -315,15 +539,20 @@ export default function RiderRequestScreen() {
     }
   }, [rideId, rideStatus]);
 
-  // Polling
+  // Polling — GET /api/ride-requests/rider/current
   const pollRide = useCallback(async () => {
     if (!rideId) return;
-    console.log('[RiderRequest] Polling ride status for id:', rideId);
+    console.log('[RiderRequest] Polling GET /api/ride-requests/rider/current — rideId:', rideId);
     try {
-      const data = await apiGet<MyRideRequest>('/api/ride-requests/my');
-      console.log('[RiderRequest] Poll result:', data?.status);
-      setRideData(data);
-      setRideStatus(data?.status ?? null);
+      const data = await apiGet<RiderCurrentResponse>('/api/ride-requests/rider/current');
+      const req = data?.ride_request;
+      const bargain = data?.pending_bargain ?? null;
+      console.log('[RiderRequest] Poll result — status:', req?.status ?? 'none', 'pending_bargain:', bargain?.id ?? 'none');
+      if (req) {
+        setRideData(req);
+        setRideStatus(req.status);
+      }
+      setPendingBargain(bargain);
     } catch (e) {
       console.error('[RiderRequest] Poll failed:', e);
     }
@@ -331,31 +560,12 @@ export default function RiderRequestScreen() {
 
   useEffect(() => {
     if (!rideId) return;
-    pollRef.current = setInterval(pollRide, 4000);
+    pollRef.current = setInterval(pollRide, 3000);
     return () => { if (pollRef.current) clearInterval(pollRef.current); };
   }, [rideId, pollRide]);
 
-  // Bargain countdown
-  useEffect(() => {
-    if (rideStatus === 'bargaining') {
-      setBargainCountdown(5);
-      countdownRef.current = setInterval(() => {
-        setBargainCountdown((prev) => {
-          if (prev <= 1) {
-            clearInterval(countdownRef.current!);
-            handleBargainResponse(false);
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-      return () => { if (countdownRef.current) clearInterval(countdownRef.current); };
-    }
-  }, [rideStatus]);
-
   const stopPolling = () => {
     if (pollRef.current) clearInterval(pollRef.current);
-    if (countdownRef.current) clearInterval(countdownRef.current);
   };
 
   const resetWizard = () => {
@@ -370,6 +580,7 @@ export default function RiderRequestScreen() {
     setRideId(null);
     setRideStatus(null);
     setRideData(null);
+    setPendingBargain(null);
     setSubmitError('');
     console.log('[RiderRequest] Wizard reset');
   };
@@ -409,14 +620,14 @@ export default function RiderRequestScreen() {
     try {
       const body = {
         vehicle_type: vehicleType,
-        pickup_address: pickupText,
+        pickup_location: pickupText,
         pickup_lat: pickupCoords.lat,
         pickup_lng: pickupCoords.lng,
-        destination_address: destText,
+        destination: destText,
         destination_lat: destCoords.lat,
         destination_lng: destCoords.lng,
         distance_km: distanceKm,
-        price_offer: Number(priceInput),
+        offered_price: Number(priceInput),
         currency,
       };
       console.log('[RiderRequest] POST /api/ride-requests', body);
@@ -434,42 +645,14 @@ export default function RiderRequestScreen() {
 
   // ── Bargain response ──────────────────────────────────────────────────────
 
-  const handleBargainResponse = async (accepted: boolean) => {
-    if (!rideId || bargainResponding) return;
-    console.log('[RiderRequest] Bargain response pressed — accepted:', accepted, 'rideId:', rideId);
-    if (countdownRef.current) clearInterval(countdownRef.current);
-    setBargainResponding(true);
-    try {
-      await apiPost(`/api/ride-requests/${rideId}/rider-response`, { accepted });
-      console.log('[RiderRequest] Bargain response sent:', accepted);
-      if (accepted) {
-        setRideStatus('accepted');
-        stopPolling();
-      } else {
-        setRideStatus('pending');
-      }
-    } catch (e) {
-      console.error('[RiderRequest] Bargain response failed:', e);
-    } finally {
-      setBargainResponding(false);
-    }
-  };
-
-  // ── Cancel ────────────────────────────────────────────────────────────────
-
-  const handleCancelRequest = async () => {
-    if (!rideId) return;
-    console.log('[RiderRequest] Cancel request pressed — rideId:', rideId);
-    setCancelling(true);
-    try {
-      await apiDelete(`/api/ride-requests/${rideId}`);
-      console.log('[RiderRequest] Ride request cancelled');
-      resetWizard();
-    } catch (e) {
-      console.error('[RiderRequest] Cancel failed:', e);
-      resetWizard();
-    } finally {
-      setCancelling(false);
+  const handleBargainResponded = (accepted: boolean) => {
+    console.log('[RiderRequest] Bargain responded — accepted:', accepted);
+    setPendingBargain(null);
+    if (accepted) {
+      setRideStatus('accepted');
+      stopPolling();
+    } else {
+      setRideStatus('pending');
     }
   };
 
@@ -485,7 +668,7 @@ export default function RiderRequestScreen() {
           >
             <View style={s.successState}>
               <Text style={s.successEmoji}>🎉</Text>
-              <Text style={s.successTitle}>Ride Booked!</Text>
+              <Text style={s.successTitle}>Ride Confirmed!</Text>
               <Text style={s.successSubtitle}>Your driver is on the way. Get ready!</Text>
               <AnimatedPressable onPress={resetWizard} style={s.primaryBtn}>
                 <Text style={s.primaryBtnText}>Request Another Ride</Text>
@@ -508,7 +691,7 @@ export default function RiderRequestScreen() {
               <Text style={s.successTitle}>No drivers available</Text>
               <Text style={s.successSubtitle}>No drivers accepted your request. Please try again.</Text>
               <AnimatedPressable onPress={resetWizard} style={s.primaryBtn}>
-                <Text style={s.primaryBtnText}>Try Again</Text>
+                <Text style={s.primaryBtnText}>New Request</Text>
               </AnimatedPressable>
             </View>
           </ScrollView>
@@ -517,10 +700,9 @@ export default function RiderRequestScreen() {
     }
 
     const vehicleLabel = vehicleType ? VEHICLE_INFO[vehicleType].label : rideData?.vehicle_type ?? '';
-    const offerText = `${rideData?.currency ?? currency} ${Number(rideData?.price_offer ?? priceInput).toLocaleString()}`;
-    const bargainPriceText = rideData?.bargain_price != null
-      ? `${rideData.currency ?? currency} ${Number(rideData.bargain_price).toLocaleString()}`
-      : '';
+    const offerText = `${rideData?.currency ?? currency} ${Number(rideData?.offered_price ?? priceInput).toLocaleString()}`;
+    const pickupDisplay = rideData?.pickup_location ?? pickupText;
+    const destDisplay = rideData?.destination ?? destText;
 
     return (
       <View style={s.container}>
@@ -537,11 +719,7 @@ export default function RiderRequestScreen() {
             </Animated.View>
           </View>
 
-          {rideStatus === 'bargaining' ? (
-            <Text style={s.waitingTitle}>Driver Counter Offer</Text>
-          ) : (
-            <Text style={s.waitingTitle}>Looking for your driver...</Text>
-          )}
+          <Text style={s.waitingTitle}>Waiting for a driver...</Text>
           <Text style={s.waitingSubtitle}>Hang tight, we're matching you with a nearby driver</Text>
 
           {/* Ride summary */}
@@ -553,11 +731,11 @@ export default function RiderRequestScreen() {
             <View style={s.summaryDivider} />
             <View style={s.summaryRow}>
               <MapPin size={13} color={PRIMARY} />
-              <Text style={s.summaryValue} numberOfLines={2}>{rideData?.pickup_address ?? pickupText}</Text>
+              <Text style={s.summaryValue} numberOfLines={2}>{pickupDisplay}</Text>
             </View>
             <View style={s.summaryRow}>
               <Flag size={13} color="#EF4444" />
-              <Text style={s.summaryValue} numberOfLines={2}>{rideData?.destination_address ?? destText}</Text>
+              <Text style={s.summaryValue} numberOfLines={2}>{destDisplay}</Text>
             </View>
             {distanceText ? (
               <View style={s.summaryRow}>
@@ -571,59 +749,18 @@ export default function RiderRequestScreen() {
               <Text style={[s.summaryValue, s.summaryPrice]}>{offerText}</Text>
             </View>
           </View>
-
-          {/* Bargain card */}
-          {rideStatus === 'bargaining' && bargainPriceText ? (
-            <View style={s.bargainCard}>
-              <Text style={s.bargainTitle}>Driver Counter Offer:</Text>
-              <Text style={s.bargainPrice}>{bargainPriceText}</Text>
-              <Text style={s.bargainCountdown}>Auto-reject in {bargainCountdown}s</Text>
-              <View style={s.bargainBtns}>
-                <AnimatedPressable
-                  onPress={() => handleBargainResponse(true)}
-                  disabled={bargainResponding}
-                  style={[s.bargainAccept, bargainResponding && s.btnDisabled]}
-                >
-                  {bargainResponding ? (
-                    <ActivityIndicator color="#fff" size="small" />
-                  ) : (
-                    <>
-                      <CheckCircle size={16} color="#fff" />
-                      <Text style={s.bargainAcceptText}>Accept</Text>
-                    </>
-                  )}
-                </AnimatedPressable>
-                <AnimatedPressable
-                  onPress={() => handleBargainResponse(false)}
-                  disabled={bargainResponding}
-                  style={[s.bargainReject, bargainResponding && s.btnDisabled]}
-                >
-                  {bargainResponding ? (
-                    <ActivityIndicator color="#fff" size="small" />
-                  ) : (
-                    <>
-                      <XCircle size={16} color="#fff" />
-                      <Text style={s.bargainRejectText}>Reject</Text>
-                    </>
-                  )}
-                </AnimatedPressable>
-              </View>
-            </View>
-          ) : null}
-
-          {/* Cancel */}
-          <AnimatedPressable
-            onPress={handleCancelRequest}
-            disabled={cancelling}
-            style={s.cancelBtn}
-          >
-            {cancelling ? (
-              <ActivityIndicator color="#EF4444" size="small" />
-            ) : (
-              <Text style={s.cancelBtnText}>Cancel Request</Text>
-            )}
-          </AnimatedPressable>
         </ScrollView>
+
+        {/* Bargain modal — shown when driver sends counter-offer */}
+        {pendingBargain ? (
+          <RiderBargainModal
+            rideId={rideId}
+            bargain={pendingBargain}
+            currency={rideData?.currency ?? currency}
+            originalPrice={Number(rideData?.offered_price ?? priceInput)}
+            onResponded={handleBargainResponded}
+          />
+        ) : null}
       </View>
     );
   }
@@ -1027,49 +1164,6 @@ const s = StyleSheet.create({
   waitingSubtitle: {
     fontSize: 14, color: TEXT_SECONDARY,
     fontFamily: 'Nunito_400Regular', textAlign: 'center', marginBottom: 24,
-  },
-
-  // Bargain card
-  bargainCard: {
-    backgroundColor: CARD_BG, borderRadius: 16, padding: 20,
-    marginBottom: 16, borderWidth: 2, borderColor: PRIMARY,
-    alignItems: 'center',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08, shadowRadius: 8, elevation: 3,
-  },
-  bargainTitle: {
-    fontSize: 14, fontWeight: '600', color: TEXT_SECONDARY,
-    fontFamily: 'Nunito_600SemiBold', marginBottom: 6,
-  },
-  bargainPrice: {
-    fontSize: 28, fontWeight: '800', color: '#B8860B',
-    fontFamily: 'Nunito_800ExtraBold', marginBottom: 4,
-  },
-  bargainCountdown: {
-    fontSize: 12, color: '#EF4444', fontFamily: 'Nunito_600SemiBold',
-    marginBottom: 16,
-  },
-  bargainBtns: { flexDirection: 'row', gap: 12, width: '100%' },
-  bargainAccept: {
-    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    gap: 6, backgroundColor: '#22C55E', borderRadius: 12, paddingVertical: 13,
-  },
-  bargainAcceptText: { fontSize: 15, fontWeight: '700', color: '#fff', fontFamily: 'Nunito_700Bold' },
-  bargainReject: {
-    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    gap: 6, backgroundColor: '#EF4444', borderRadius: 12, paddingVertical: 13,
-  },
-  bargainRejectText: { fontSize: 15, fontWeight: '700', color: '#fff', fontFamily: 'Nunito_700Bold' },
-
-  // Cancel
-  cancelBtn: {
-    alignSelf: 'center', marginTop: 8,
-    paddingVertical: 12, paddingHorizontal: 24,
-    borderRadius: 12, borderWidth: 1.5, borderColor: '#FECACA',
-  },
-  cancelBtnText: {
-    fontSize: 14, fontWeight: '600', color: '#EF4444',
-    fontFamily: 'Nunito_600SemiBold',
   },
 
   // Success / cancelled

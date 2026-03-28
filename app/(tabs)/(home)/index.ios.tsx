@@ -10,30 +10,46 @@ import {
   Linking,
   Image,
   TouchableOpacity,
+  Switch,
   ImageSourcePropType,
 } from 'react-native';
 import { Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { COLORS } from '@/constants/colors';
 import { AnimatedPressable } from '@/components/AnimatedPressable';
 import { apiGet, apiPost } from '@/utils/api';
-import { MapPin, Flag, Navigation, Phone, BellOff, Bell, Car } from 'lucide-react-native';
+import { MapPin, Flag, Navigation, Phone, BellOff, Car } from 'lucide-react-native';
 import { useProfile } from '@/contexts/ProfileContext';
 import RiderRequestScreen from '@/components/RiderRequestScreen';
+
+// ─── Constants ────────────────────────────────────────────────────────────────
+
+const PRIMARY = '#F5C518';
+const BG = '#FAF7F0';
+const TEXT = '#1A1A1A';
+const TEXT_SECONDARY = '#6B7280';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface RideRequest {
   id: string;
-  rider_name: string;
-  rider_phone: string;
-  pickup_address: string;
-  destination_address: string;
-  pickup_lat?: number;
-  pickup_lng?: number;
-  distance_km?: number;
-  price_offer?: number;
-  status?: string;
+  rider_id: string;
+  driver_id: string | null;
+  vehicle_type: string;
+  pickup_location: string;
+  pickup_lat: number;
+  pickup_lng: number;
+  destination: string;
+  destination_lat: number;
+  destination_lng: number;
+  distance_km: number;
+  offered_price: number;
+  final_price: number | null;
+  currency: string;
+  status: string;
+  driver_attempt_count: number;
+  rider_first_name: string;
+  rider_phone: string | null;
+  created_at: string;
 }
 
 interface AcceptedRide {
@@ -49,9 +65,9 @@ function resolveImageSource(source: string | number | ImageSourcePropType | unde
   return source as ImageSourcePropType;
 }
 
-function formatPrice(price: number | undefined): string {
-  if (price == null) return 'KES —';
-  return `KES ${Number(price).toLocaleString()}`;
+function formatPrice(price: number | undefined, currency?: string): string {
+  if (price == null) return `${currency ?? 'KES'} —`;
+  return `${currency ?? 'KES'} ${Number(price).toLocaleString()}`;
 }
 
 function formatDistance(km: number | undefined): string {
@@ -96,47 +112,47 @@ function AcceptModal({ ride, onClose }: { ride: AcceptedRide | null; onClose: ()
   );
 }
 
-// ─── Ride Request Card ────────────────────────────────────────────────────────
+// ─── Driver Ride Card ─────────────────────────────────────────────────────────
 
-interface CardProps {
+interface DriverCardProps {
   request: RideRequest;
-  index: number;
-  muted: boolean;
   onAccept: (id: string) => void;
   onIgnore: (id: string) => void;
   onBargainSent: (id: string) => void;
   actionLoading: string | null;
+  bargainWaiting: boolean;
 }
 
-function RideRequestCard({ request, index, muted, onAccept, onIgnore, onBargainSent, actionLoading }: CardProps) {
+function DriverRideCard({ request, onAccept, onIgnore, onBargainSent, actionLoading, bargainWaiting }: DriverCardProps) {
   const opacity = useRef(new Animated.Value(0)).current;
-  const translateY = useRef(new Animated.Value(16)).current;
+  const translateY = useRef(new Animated.Value(20)).current;
   const [bargainOpen, setBargainOpen] = useState(false);
   const [bargainLoading, setBargainLoading] = useState(false);
   const [bargainSuccess, setBargainSuccess] = useState(false);
 
   useEffect(() => {
     Animated.parallel([
-      Animated.timing(opacity, { toValue: 1, duration: 320, delay: index * 70, useNativeDriver: true }),
-      Animated.timing(translateY, { toValue: 0, duration: 320, delay: index * 70, useNativeDriver: true }),
+      Animated.timing(opacity, { toValue: 1, duration: 350, useNativeDriver: true }),
+      Animated.timing(translateY, { toValue: 0, duration: 350, useNativeDriver: true }),
     ]).start();
   }, []);
 
   const isLoading = actionLoading === request.id;
-  const price = Number(request.price_offer) || 0;
+  const offeredPrice = Number(request.offered_price) || 0;
+  const currency = request.currency || 'KES';
 
   const bargainOptions = [
-    { label: '10% Up', multiplier: 1.10 },
-    { label: '25% Up', multiplier: 1.25 },
-    { label: '50% Up', multiplier: 1.50 },
+    { label: '10% Up', percent: 10, multiplier: 1.10 },
+    { label: '25% Up', percent: 25, multiplier: 1.25 },
+    { label: '50% Up', percent: 50, multiplier: 1.50 },
   ];
 
-  const handleBargain = async (multiplier: number) => {
-    console.log('[RideRequestCard] Bargain pressed — id:', request.id, 'multiplier:', multiplier);
+  const handleBargain = async (percent: number, multiplier: number) => {
+    console.log('[DriverRideCard] Bargain pressed — id:', request.id, 'percent:', percent);
     setBargainLoading(true);
     try {
-      await apiPost(`/api/ride-requests/${request.id}/bargain`, { multiplier });
-      console.log('[RideRequestCard] Bargain sent successfully');
+      await apiPost(`/api/ride-requests/${request.id}/bargain`, { bargain_percent: percent });
+      console.log('[DriverRideCard] Bargain sent successfully — percent:', percent);
       setBargainSuccess(true);
       onBargainSent(request.id);
       setTimeout(() => {
@@ -144,16 +160,16 @@ function RideRequestCard({ request, index, muted, onAccept, onIgnore, onBargainS
         setBargainOpen(false);
       }, 2000);
     } catch (e) {
-      console.error('[RideRequestCard] Bargain failed:', e);
+      console.error('[DriverRideCard] Bargain failed:', e);
     } finally {
       setBargainLoading(false);
     }
   };
 
   const mapUrl = buildMapUrl(request.pickup_lat, request.pickup_lng);
-  const riderInitial = (request.rider_name || 'R')[0].toUpperCase();
+  const riderInitial = (request.rider_first_name || 'R')[0].toUpperCase();
   const distanceText = formatDistance(request.distance_km);
-  const priceText = formatPrice(request.price_offer);
+  const priceText = formatPrice(request.offered_price, currency);
 
   return (
     <Animated.View style={{ opacity, transform: [{ translateY }] }}>
@@ -164,9 +180,9 @@ function RideRequestCard({ request, index, muted, onAccept, onIgnore, onBargainS
             <Text style={styles.riderAvatarText}>{riderInitial}</Text>
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={styles.riderName}>{request.rider_name || 'Rider'}</Text>
+            <Text style={styles.riderName}>{request.rider_first_name || 'Rider'}</Text>
             <View style={styles.distanceRow}>
-              <Navigation size={12} color={COLORS.textTertiary} />
+              <Navigation size={12} color={TEXT_SECONDARY} />
               <Text style={styles.distanceText}>{distanceText}</Text>
             </View>
           </View>
@@ -187,107 +203,111 @@ function RideRequestCard({ request, index, muted, onAccept, onIgnore, onBargainS
         {/* Route */}
         <View style={styles.routeContainer}>
           <View style={styles.routeRow}>
-            <MapPin size={15} color={COLORS.primary} />
-            <Text style={styles.routeLabel} numberOfLines={2}>{request.pickup_address}</Text>
+            <MapPin size={15} color={PRIMARY} />
+            <Text style={styles.routeLabel} numberOfLines={2}>{request.pickup_location}</Text>
           </View>
           <View style={styles.routeDividerLine} />
           <View style={styles.routeRow}>
-            <Flag size={15} color={COLORS.accent} />
-            <Text style={styles.routeLabel} numberOfLines={2}>{request.destination_address}</Text>
+            <Flag size={15} color="#EF4444" />
+            <Text style={styles.routeLabel} numberOfLines={2}>{request.destination}</Text>
           </View>
         </View>
 
         <View style={styles.divider} />
 
-        {/* Action buttons */}
-        <View style={styles.actionRow}>
-          {/* Accept */}
-          <AnimatedPressable
-            onPress={() => {
-              console.log('[RideRequestCard] Accept pressed — id:', request.id);
-              onAccept(request.id);
-            }}
-            disabled={muted || isLoading}
-            style={[styles.btnAccept, (muted || isLoading) && styles.btnDisabled]}
-          >
-            {isLoading ? (
-              <ActivityIndicator color="#fff" size="small" />
-            ) : (
-              <Text style={[styles.btnAcceptText, muted && styles.btnDisabledText]}>Accept</Text>
-            )}
-          </AnimatedPressable>
-
-          {/* Bargain */}
-          <AnimatedPressable
-            onPress={() => {
-              console.log('[RideRequestCard] Bargain pressed — id:', request.id);
-              setBargainOpen((v) => !v);
-            }}
-            disabled={muted}
-            style={[styles.btnBargain, muted && styles.btnDisabled]}
-          >
-            <Text style={[styles.btnBargainText, muted && styles.btnDisabledText]}>Bargain</Text>
-          </AnimatedPressable>
-
-          {/* Ignore */}
-          <AnimatedPressable
-            onPress={() => {
-              console.log('[RideRequestCard] Ignore pressed — id:', request.id);
-              onIgnore(request.id);
-            }}
-            disabled={muted || isLoading}
-            style={[styles.btnIgnore, (muted || isLoading) && styles.btnDisabled]}
-          >
-            <Text style={[styles.btnIgnoreText, muted && styles.btnDisabledText]}>Ignore</Text>
-          </AnimatedPressable>
-        </View>
-
-        {/* Bargain expansion */}
-        {bargainOpen ? (
-          <View style={styles.bargainPanel}>
-            <Text style={styles.bargainLabel}>Counter offer:</Text>
-            {bargainSuccess ? (
-              <View style={styles.bargainSuccessBanner}>
-                <Text style={styles.bargainSuccessText}>Bargain sent to rider!</Text>
-              </View>
-            ) : (
-              <View style={styles.bargainPills}>
-                {bargainOptions.map((opt) => {
-                  const newPrice = Math.round(price * opt.multiplier);
-                  const newPriceText = `KES ${newPrice.toLocaleString()}`;
-                  return (
-                    <AnimatedPressable
-                      key={opt.label}
-                      onPress={() => handleBargain(opt.multiplier)}
-                      disabled={bargainLoading}
-                      style={styles.bargainPill}
-                    >
-                      {bargainLoading ? (
-                        <ActivityIndicator color={COLORS.text} size="small" />
-                      ) : (
-                        <Text style={styles.bargainPillText}>
-                          {opt.label}
-                        </Text>
-                      )}
-                      {!bargainLoading ? (
-                        <Text style={styles.bargainPillPrice}>{newPriceText}</Text>
-                      ) : null}
-                    </AnimatedPressable>
-                  );
-                })}
-              </View>
-            )}
-            <TouchableOpacity
-              onPress={() => {
-                console.log('[RideRequestCard] Bargain cancel pressed');
-                setBargainOpen(false);
-              }}
-              style={styles.bargainCancel}
-            >
-              <Text style={styles.bargainCancelText}>Cancel</Text>
-            </TouchableOpacity>
+        {/* Bargain waiting state */}
+        {bargainWaiting ? (
+          <View style={styles.bargainWaitingBanner}>
+            <ActivityIndicator size="small" color="#B8860B" />
+            <Text style={styles.bargainWaitingText}>Bargain sent — waiting for rider response...</Text>
           </View>
-        ) : null}
+        ) : (
+          <>
+            {/* Action buttons */}
+            <View style={styles.actionRow}>
+              <AnimatedPressable
+                onPress={() => {
+                  console.log('[DriverRideCard] Accept pressed — id:', request.id);
+                  onAccept(request.id);
+                }}
+                disabled={isLoading}
+                style={[styles.btnAccept, isLoading && styles.btnDisabled]}
+              >
+                {isLoading ? (
+                  <ActivityIndicator color="#fff" size="small" />
+                ) : (
+                  <Text style={styles.btnAcceptText}>Accept</Text>
+                )}
+              </AnimatedPressable>
+
+              <AnimatedPressable
+                onPress={() => {
+                  console.log('[DriverRideCard] Bargain toggle pressed — id:', request.id);
+                  setBargainOpen((v) => !v);
+                }}
+                style={styles.btnBargain}
+              >
+                <Text style={styles.btnBargainText}>Bargain</Text>
+              </AnimatedPressable>
+
+              <AnimatedPressable
+                onPress={() => {
+                  console.log('[DriverRideCard] Ignore pressed — id:', request.id);
+                  onIgnore(request.id);
+                }}
+                disabled={isLoading}
+                style={[styles.btnIgnore, isLoading && styles.btnDisabled]}
+              >
+                <Text style={styles.btnIgnoreText}>Ignore</Text>
+              </AnimatedPressable>
+            </View>
+
+            {/* Bargain expansion */}
+            {bargainOpen ? (
+              <View style={styles.bargainPanel}>
+                <Text style={styles.bargainLabel}>Counter offer:</Text>
+                {bargainSuccess ? (
+                  <View style={styles.bargainSuccessBanner}>
+                    <Text style={styles.bargainSuccessText}>Bargain sent to rider!</Text>
+                  </View>
+                ) : (
+                  <View style={styles.bargainPills}>
+                    {bargainOptions.map((opt) => {
+                      const newPrice = Math.round(offeredPrice * opt.multiplier);
+                      const newPriceText = `${currency} ${newPrice.toLocaleString()}`;
+                      return (
+                        <AnimatedPressable
+                          key={opt.label}
+                          onPress={() => handleBargain(opt.percent, opt.multiplier)}
+                          disabled={bargainLoading}
+                          style={styles.bargainPill}
+                        >
+                          {bargainLoading ? (
+                            <ActivityIndicator color={TEXT} size="small" />
+                          ) : (
+                            <Text style={styles.bargainPillText}>{opt.label}</Text>
+                          )}
+                          {!bargainLoading ? (
+                            <Text style={styles.bargainPillPrice}>{newPriceText}</Text>
+                          ) : null}
+                        </AnimatedPressable>
+                      );
+                    })}
+                  </View>
+                )}
+                <TouchableOpacity
+                  onPress={() => {
+                    console.log('[DriverRideCard] Bargain cancel pressed');
+                    setBargainOpen(false);
+                  }}
+                  style={styles.bargainCancel}
+                >
+                  <Text style={styles.bargainCancelText}>Cancel</Text>
+                </TouchableOpacity>
+              </View>
+            ) : null}
+          </>
+        )}
       </View>
     </Animated.View>
   );
@@ -297,12 +317,13 @@ function RideRequestCard({ request, index, muted, onAccept, onIgnore, onBargainS
 
 function DriverRidesScreen() {
   const insets = useSafeAreaInsets();
-  const [requests, setRequests] = useState<RideRequest[]>([]);
+  const [currentRequest, setCurrentRequest] = useState<RideRequest | null>(null);
   const [loading, setLoading] = useState(true);
   const [muted, setMuted] = useState(false);
   const [muteLoading, setMuteLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [acceptedRide, setAcceptedRide] = useState<AcceptedRide | null>(null);
+  const [bargainWaiting, setBargainWaiting] = useState(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
@@ -320,31 +341,42 @@ function DriverRidesScreen() {
     fetchMuteState();
   }, []);
 
-  const fetchRequests = useCallback(async (silent = false) => {
+  const fetchCurrentRequest = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
-    console.log('[DriverRidesScreen] Fetching ride requests');
+    console.log('[DriverRidesScreen] Polling GET /api/ride-requests/driver/current');
     try {
-      const data = await apiGet<RideRequest[]>('/api/ride-requests');
-      const list = Array.isArray(data) ? data : [];
-      console.log('[DriverRidesScreen] Ride requests count:', list.length);
-      setRequests(list);
+      const data = await apiGet<{ ride_request: RideRequest | null }>('/api/ride-requests/driver/current');
+      const req = data?.ride_request ?? null;
+      console.log('[DriverRidesScreen] Current request:', req?.id ?? 'none', 'status:', req?.status ?? 'none');
+      setCurrentRequest(req);
+
+      if (bargainWaiting && req) {
+        if (req.status === 'accepted') {
+          console.log('[DriverRidesScreen] Bargain accepted by rider');
+          setBargainWaiting(false);
+        } else if (req.status === 'pending') {
+          console.log('[DriverRidesScreen] Bargain rejected by rider, clearing card');
+          setBargainWaiting(false);
+          setCurrentRequest(null);
+        }
+      }
     } catch (e) {
-      console.error('[DriverRidesScreen] Failed to fetch ride requests:', e);
+      console.error('[DriverRidesScreen] Failed to fetch current request:', e);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [bargainWaiting]);
 
   useEffect(() => {
-    fetchRequests();
-    intervalRef.current = setInterval(() => fetchRequests(true), 5000);
+    fetchCurrentRequest();
+    intervalRef.current = setInterval(() => fetchCurrentRequest(true), 3000);
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
-  }, [fetchRequests]);
+  }, [fetchCurrentRequest]);
 
   const handleToggleMute = async () => {
-    console.log('[DriverRidesScreen] Mute/Unmute toggle pressed — current muted:', muted);
+    console.log('[DriverRidesScreen] Mute toggle pressed — current muted:', muted);
     setMuteLoading(true);
     try {
       const data = await apiPost<{ muted: boolean }>('/api/driver/mute', { muted: !muted });
@@ -360,15 +392,15 @@ function DriverRidesScreen() {
   };
 
   const handleAccept = async (id: string) => {
-    console.log('[DriverRidesScreen] Accepting ride request:', id);
+    console.log('[DriverRidesScreen] POST /api/ride-requests/' + id + '/accept');
     setActionLoading(id);
     try {
-      const data = await apiPost<{ rider_name?: string; rider_phone?: string; ride?: { rider_name?: string; rider_phone?: string } }>(`/api/ride-requests/${id}/accept`, {});
-      console.log('[DriverRidesScreen] Ride accepted:', id, data);
-      const riderName = data?.rider_name ?? data?.ride?.rider_name ?? requests.find((r) => r.id === id)?.rider_name ?? 'Rider';
-      const riderPhone = data?.rider_phone ?? data?.ride?.rider_phone ?? requests.find((r) => r.id === id)?.rider_phone ?? '';
+      const data = await apiPost<{ success: boolean; rider_phone?: string; rider_name?: string }>(`/api/ride-requests/${id}/accept`, {});
+      console.log('[DriverRidesScreen] Ride accepted response:', data);
+      const riderName = data?.rider_name ?? currentRequest?.rider_first_name ?? 'Rider';
+      const riderPhone = data?.rider_phone ?? currentRequest?.rider_phone ?? '';
       setAcceptedRide({ rider_name: riderName, rider_phone: riderPhone });
-      setRequests((prev) => prev.filter((r) => r.id !== id));
+      setCurrentRequest(null);
     } catch (e) {
       console.error('[DriverRidesScreen] Accept failed:', e);
     } finally {
@@ -377,8 +409,8 @@ function DriverRidesScreen() {
   };
 
   const handleIgnore = async (id: string) => {
-    console.log('[DriverRidesScreen] Ignoring ride request:', id);
-    setRequests((prev) => prev.filter((r) => r.id !== id));
+    console.log('[DriverRidesScreen] POST /api/ride-requests/' + id + '/reject — action: ignored');
+    setCurrentRequest(null);
     try {
       await apiPost(`/api/ride-requests/${id}/reject`, { action: 'ignored' });
       console.log('[DriverRidesScreen] Ride ignored:', id);
@@ -388,45 +420,41 @@ function DriverRidesScreen() {
   };
 
   const handleBargainSent = (id: string) => {
-    console.log('[DriverRidesScreen] Bargain sent for ride:', id);
+    console.log('[DriverRidesScreen] Bargain sent for ride:', id, '— entering wait state');
+    setBargainWaiting(true);
   };
-
-  const muteLabel = muted ? 'Muted' : 'Live';
-  const muteBgColor = muted ? '#9E9E9E' : '#22C55E';
 
   return (
     <View style={styles.container}>
       <Stack.Screen
         options={{
-          title: 'Accept Ride Requests',
+          title: 'Rides',
           headerShown: true,
-          headerStyle: { backgroundColor: '#FAF7F0' },
+          headerStyle: { backgroundColor: PRIMARY },
           headerTitleStyle: {
             fontSize: 18,
             fontWeight: '700',
-            color: '#1A1A1A',
+            color: TEXT,
             fontFamily: 'Nunito_700Bold',
           },
           headerRight: () => (
-            <AnimatedPressable
-              onPress={handleToggleMute}
-              disabled={muteLoading}
-              style={[styles.mutePill, { backgroundColor: muteBgColor }]}
-            >
+            <View style={styles.muteToggleRow}>
+              <Text style={styles.muteToggleLabel}>{muted ? 'Muted' : 'Live'}</Text>
               {muteLoading ? (
-                <ActivityIndicator color="#fff" size="small" />
-              ) : muted ? (
-                <>
-                  <BellOff size={13} color="#fff" />
-                  <Text style={styles.mutePillText}>{muteLabel}</Text>
-                </>
+                <ActivityIndicator size="small" color={TEXT} style={{ marginRight: 8 }} />
               ) : (
-                <>
-                  <Bell size={13} color="#fff" />
-                  <Text style={styles.mutePillText}>{muteLabel}</Text>
-                </>
+                <Switch
+                  value={!muted}
+                  onValueChange={() => {
+                    console.log('[DriverRidesScreen] Mute switch toggled');
+                    handleToggleMute();
+                  }}
+                  trackColor={{ false: '#9E9E9E', true: '#22C55E' }}
+                  thumbColor="#fff"
+                  style={{ marginRight: 8 }}
+                />
               )}
-            </AnimatedPressable>
+            </View>
           ),
         }}
       />
@@ -435,7 +463,7 @@ function DriverRidesScreen() {
         <View style={styles.mutedBanner}>
           <BellOff size={15} color="#92400E" />
           <Text style={styles.mutedBannerText}>
-            You are muted — you cannot accept rides. Tap 'Live' to unmute.
+            You are muted — not receiving ride requests
           </Text>
         </View>
       ) : null}
@@ -445,34 +473,28 @@ function DriverRidesScreen() {
         contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 120 }]}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.subtitle}>Incoming ride requests from riders nearby</Text>
-
         {loading ? (
           <View style={styles.centered}>
-            <ActivityIndicator size="large" color={COLORS.primary} />
-            <Text style={styles.loadingText}>Loading ride requests...</Text>
+            <ActivityIndicator size="large" color={PRIMARY} />
+            <Text style={styles.loadingText}>Looking for ride requests...</Text>
           </View>
-        ) : requests.length === 0 ? (
+        ) : currentRequest ? (
+          <DriverRideCard
+            request={currentRequest}
+            onAccept={handleAccept}
+            onIgnore={handleIgnore}
+            onBargainSent={handleBargainSent}
+            actionLoading={actionLoading}
+            bargainWaiting={bargainWaiting}
+          />
+        ) : (
           <View style={styles.emptyState}>
             <View style={styles.emptyIcon}>
-              <Car size={40} color={COLORS.primary} />
+              <Car size={40} color={PRIMARY} />
             </View>
-            <Text style={styles.emptyTitle}>No ride requests</Text>
+            <Text style={styles.emptyTitle}>No ride requests yet</Text>
             <Text style={styles.emptySubtitle}>Waiting for riders nearby...</Text>
           </View>
-        ) : (
-          requests.map((req, i) => (
-            <RideRequestCard
-              key={req.id}
-              request={req}
-              index={i}
-              muted={muted}
-              onAccept={handleAccept}
-              onIgnore={handleIgnore}
-              onBargainSent={handleBargainSent}
-              actionLoading={actionLoading}
-            />
-          ))
         )}
       </ScrollView>
 
@@ -489,35 +511,36 @@ export default function RidesScreen() {
   if (profileLoading) {
     return (
       <View style={styles.container}>
-        <Stack.Screen options={{ title: 'Rides', headerShown: true, headerStyle: { backgroundColor: '#FAF7F0' } }} />
+        <Stack.Screen options={{ title: 'Rides', headerShown: true, headerStyle: { backgroundColor: BG } }} />
         <View style={styles.centered}>
-          <ActivityIndicator size="large" color={COLORS.primary} />
+          <ActivityIndicator size="large" color={PRIMARY} />
         </View>
       </View>
     );
   }
 
-  const userRole = profile?.role || (profile as any)?.user_type || (profile as any)?.user_role;
-  const isDriver = userRole === 'driver';
+  const isDriver =
+    profile?.role === 'driver' ||
+    (profile as any)?.user_type === 'driver' ||
+    (profile as any)?.user_role === 'driver';
 
-  console.log('[RidesScreen] role-branch — userRole:', userRole, 'isDriver:', isDriver);
+  console.log('[RidesScreen] role-branch — role:', profile?.role, 'isDriver:', isDriver);
 
   if (isDriver) {
     return <DriverRidesScreen />;
   }
 
-  // rider (or unknown role — default to rider UI)
   return (
     <>
       <Stack.Screen
         options={{
           title: 'Request a Ride',
           headerShown: true,
-          headerStyle: { backgroundColor: '#FAF7F0' },
+          headerStyle: { backgroundColor: BG },
           headerTitleStyle: {
             fontSize: 18,
             fontWeight: '700',
-            color: '#1A1A1A',
+            color: TEXT,
             fontFamily: 'Nunito_700Bold',
           },
         }}
@@ -532,7 +555,7 @@ export default function RidesScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FAF7F0',
+    backgroundColor: BG,
   },
   centered: {
     flex: 1,
@@ -542,35 +565,23 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: 16,
-    paddingTop: 8,
-  },
-  subtitle: {
-    fontSize: 13,
-    color: '#888',
-    fontFamily: 'Nunito_400Regular',
-    marginBottom: 16,
+    paddingTop: 12,
   },
   loadingText: {
     marginTop: 12,
     fontSize: 14,
-    color: '#888',
+    color: TEXT_SECONDARY,
     fontFamily: 'Nunito_400Regular',
   },
-  mutePill: {
+  muteToggleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-    marginRight: 4,
-    minWidth: 72,
-    justifyContent: 'center',
+    gap: 6,
   },
-  mutePillText: {
-    fontSize: 12,
+  muteToggleLabel: {
+    fontSize: 13,
     fontWeight: '700',
-    color: '#fff',
+    color: TEXT,
     fontFamily: 'Nunito_700Bold',
   },
   mutedBanner: {
@@ -592,7 +603,7 @@ const styles = StyleSheet.create({
   },
   emptyState: {
     alignItems: 'center',
-    paddingTop: 60,
+    paddingTop: 80,
     gap: 12,
   },
   emptyIcon: {
@@ -606,13 +617,13 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#1A1A1A',
+    color: TEXT,
     fontFamily: 'Nunito_700Bold',
     textAlign: 'center',
   },
   emptySubtitle: {
     fontSize: 14,
-    color: '#888',
+    color: TEXT_SECONDARY,
     fontFamily: 'Nunito_400Regular',
     textAlign: 'center',
     maxWidth: 240,
@@ -644,7 +655,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1.5,
-    borderColor: '#F5C518',
+    borderColor: PRIMARY,
   },
   riderAvatarText: {
     fontSize: 19,
@@ -655,7 +666,7 @@ const styles = StyleSheet.create({
   riderName: {
     fontSize: 17,
     fontWeight: '700',
-    color: '#1A1A1A',
+    color: TEXT,
     fontFamily: 'Nunito_700Bold',
   },
   distanceRow: {
@@ -666,7 +677,7 @@ const styles = StyleSheet.create({
   },
   distanceText: {
     fontSize: 12,
-    color: '#888',
+    color: TEXT_SECONDARY,
     fontFamily: 'Nunito_400Regular',
   },
   priceBadge: {
@@ -706,7 +717,7 @@ const styles = StyleSheet.create({
   },
   routeLabel: {
     fontSize: 13,
-    color: '#1A1A1A',
+    color: TEXT,
     fontFamily: 'Nunito_600SemiBold',
     fontWeight: '600',
     flex: 1,
@@ -725,7 +736,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#22C55E',
     borderRadius: 10,
-    paddingVertical: 11,
+    paddingVertical: 13,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -737,23 +748,23 @@ const styles = StyleSheet.create({
   },
   btnBargain: {
     flex: 1,
-    backgroundColor: '#F5C518',
+    backgroundColor: PRIMARY,
     borderRadius: 10,
-    paddingVertical: 11,
+    paddingVertical: 13,
     alignItems: 'center',
     justifyContent: 'center',
   },
   btnBargainText: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#1A1A1A',
+    color: TEXT,
     fontFamily: 'Nunito_700Bold',
   },
   btnIgnore: {
     flex: 1,
     backgroundColor: 'transparent',
     borderRadius: 10,
-    paddingVertical: 11,
+    paddingVertical: 13,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1.5,
@@ -762,14 +773,28 @@ const styles = StyleSheet.create({
   btnIgnoreText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#6B7280',
+    color: TEXT_SECONDARY,
     fontFamily: 'Nunito_600SemiBold',
   },
   btnDisabled: {
     opacity: 0.4,
   },
-  btnDisabledText: {
-    opacity: 0.6,
+  bargainWaitingBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: 'rgba(245,197,24,0.1)',
+    borderRadius: 10,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(245,197,24,0.3)',
+  },
+  bargainWaitingText: {
+    flex: 1,
+    fontSize: 13,
+    color: '#B8860B',
+    fontFamily: 'Nunito_600SemiBold',
+    fontWeight: '600',
   },
   bargainPanel: {
     marginTop: 12,
@@ -782,7 +807,7 @@ const styles = StyleSheet.create({
   bargainLabel: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#888',
+    color: TEXT_SECONDARY,
     fontFamily: 'Nunito_600SemiBold',
     marginBottom: 10,
   },
@@ -794,7 +819,7 @@ const styles = StyleSheet.create({
   bargainPill: {
     flex: 1,
     minWidth: 90,
-    backgroundColor: '#F5C518',
+    backgroundColor: PRIMARY,
     borderRadius: 20,
     paddingVertical: 8,
     paddingHorizontal: 10,
@@ -804,7 +829,7 @@ const styles = StyleSheet.create({
   bargainPillText: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#1A1A1A',
+    color: TEXT,
     fontFamily: 'Nunito_700Bold',
   },
   bargainPillPrice: {
@@ -835,7 +860,7 @@ const styles = StyleSheet.create({
   },
   bargainCancelText: {
     fontSize: 13,
-    color: '#888',
+    color: TEXT_SECONDARY,
     fontFamily: 'Nunito_400Regular',
     textDecorationLine: 'underline',
   },
@@ -863,7 +888,7 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 22,
     fontWeight: '800',
-    color: '#1A1A1A',
+    color: TEXT,
     fontFamily: 'Nunito_800ExtraBold',
     textAlign: 'center',
   },
@@ -873,20 +898,20 @@ const styles = StyleSheet.create({
   modalRiderName: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#1A1A1A',
+    color: TEXT,
     fontFamily: 'Nunito_700Bold',
     textAlign: 'center',
   },
   modalPhoneLabel: {
     fontSize: 13,
-    color: '#888',
+    color: TEXT_SECONDARY,
     fontFamily: 'Nunito_400Regular',
     marginTop: 4,
   },
   modalPhone: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#1A1A1A',
+    color: TEXT,
     fontFamily: 'Nunito_700Bold',
     letterSpacing: 1,
   },
@@ -920,7 +945,7 @@ const styles = StyleSheet.create({
   closeBtnText: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#6B7280',
+    color: TEXT_SECONDARY,
     fontFamily: 'Nunito_600SemiBold',
   },
 });

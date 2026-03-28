@@ -7,16 +7,16 @@ import {
   TouchableOpacity,
   FlatList,
   Platform,
+  Image,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import { Image } from 'expo-image';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { COLORS } from '@/constants/colors';
 import { AnimatedPressable } from '@/components/AnimatedPressable';
 import { Car, User, ChevronDown, Check } from 'lucide-react-native';
 
-const LOGO = require('@/assets/images/a11f821b-ef35-45fe-8a5e-5dcefb8655ce.png');
+const LOGO = require('../assets/images/3d98049b-3879-48ac-91c0-1b5125f0c158.png');
 
 type UserType = 'driver' | 'rider';
 
@@ -181,8 +181,8 @@ export default function WelcomeScreen() {
   };
 
   return (
-    <View style={{ flex: 1, backgroundColor: COLORS.background }}>
-      <StatusBar style="dark" backgroundColor={COLORS.background} />
+    <View style={{ flex: 1, backgroundColor: '#F5C842' }}>
+      <StatusBar style="dark" backgroundColor="#F5C842" />
 
       <SelectorModal
         visible={countryModalOpen}
@@ -215,33 +215,8 @@ export default function WelcomeScreen() {
         <View style={{ alignItems: 'center', marginBottom: 40 }}>
           <Image
             source={LOGO}
-            style={{ width: 120, height: 120, marginBottom: 20 }}
-            contentFit="contain"
+            style={{ width: '100%', aspectRatio: 1, resizeMode: 'contain' }}
           />
-          <Text
-            style={{
-              fontSize: 28,
-              fontWeight: '800',
-              color: COLORS.text,
-              fontFamily: 'Nunito_800ExtraBold',
-              letterSpacing: -0.5,
-              marginBottom: 6,
-              textAlign: 'center',
-            }}
-          >
-            Welcome to Uhuru Rides
-          </Text>
-          <Text
-            style={{
-              fontSize: 15,
-              color: COLORS.textSecondary,
-              fontFamily: 'Nunito_400Regular',
-              textAlign: 'center',
-              lineHeight: 22,
-            }}
-          >
-            Let's set up your profile before you get started
-          </Text>
         </View>
 
         {/* Country Selector */}

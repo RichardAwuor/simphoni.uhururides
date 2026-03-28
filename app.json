@@ -4,7 +4,7 @@
     "slug": "uhuru-east-africa-is",
     "version": "1.0.9",
     "orientation": "portrait",
-    "icon": "./assets/images/d0a29e25-7d09-4478-9fd3-8d4344186c75.png",
+    "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
     "splash": {
       "image": "./assets/images/app-icon-xst.png",

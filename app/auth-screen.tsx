@@ -29,7 +29,7 @@ import {
 import { router, useLocalSearchParams } from 'expo-router';
 import { apiPost } from '@/utils/api';
 
-const LOGO = require('@/assets/images/a11f821b-ef35-45fe-8a5e-5dcefb8655ce.png');
+const LOGO = require('../assets/images/9829a994-e39e-4ffe-a130-d61d8cab00e2.png');
 
 function InputField({
   label,

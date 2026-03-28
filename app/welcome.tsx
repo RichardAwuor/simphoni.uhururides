@@ -17,7 +17,7 @@ import { AnimatedPressable } from '@/components/AnimatedPressable';
 import { Car, User, ChevronDown, Check } from 'lucide-react-native';
 import { countryToLanguage } from '@/constants/translations';
 
-const LOGO = require('../assets/images/ac2c2fd6-9c25-4adf-85f4-5824842a6943.png');
+const LOGO = require('../assets/images/6ef57fee-eec1-4087-88c1-36b9068d1021.png');
 
 type UserType = 'driver' | 'rider';
 

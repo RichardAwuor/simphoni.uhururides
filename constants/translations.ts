@@ -1,6 +1,28 @@
-export type Language = 'english' | 'swahili' | 'luganda';
+export type Language = 'en' | 'sw' | 'rw' | 'am';
 
 export type TranslationKey =
+  // Auth / registration screen
+  | 'createAccount'
+  | 'fullName'
+  | 'phoneNumber'
+  | 'emailAddress'
+  | 'confirmEmail'
+  | 'vehicleDetails'
+  | 'driver'
+  | 'rider'
+  | 'iGiveRides'
+  | 'iNeedRides'
+  | 'continueBtn'
+  | 'registerBtn'
+  | 'fullNamePlaceholder'
+  | 'phonePlaceholder'
+  | 'vehicleMake'
+  | 'vehicleModel'
+  | 'licensePlate'
+  | 'nationalId'
+  | 'password'
+  | 'emailsDoNotMatch'
+  // Main app
   | 'requestARide'
   | 'confirmRequest'
   | 'accept'
@@ -26,7 +48,27 @@ export type TranslationKey =
   | 'memberSince';
 
 export const translations: Record<Language, Record<TranslationKey, string>> = {
-  english: {
+  en: {
+    createAccount: 'Create your account',
+    fullName: 'Full Name',
+    phoneNumber: 'Phone Number',
+    emailAddress: 'Email address',
+    confirmEmail: 'Confirm email address',
+    vehicleDetails: 'Vehicle Details',
+    driver: 'Driver',
+    rider: 'Rider',
+    iGiveRides: 'I give rides',
+    iNeedRides: 'I need rides',
+    continueBtn: 'Continue',
+    registerBtn: 'Create Account',
+    fullNamePlaceholder: 'e.g. Amara Osei',
+    phonePlaceholder: 'e.g. +254 712 345 678',
+    vehicleMake: 'Vehicle Make',
+    vehicleModel: 'Vehicle Model',
+    licensePlate: 'License Plate Number',
+    nationalId: "National ID / Driver's License Number",
+    password: 'Password',
+    emailsDoNotMatch: 'Emails do not match',
     requestARide: 'Request a Ride',
     confirmRequest: 'Confirm Request',
     accept: 'Accept',
@@ -51,7 +93,27 @@ export const translations: Record<Language, Record<TranslationKey, string>> = {
     kmDriven: 'Kilometers Driven',
     memberSince: 'Member Since',
   },
-  swahili: {
+  sw: {
+    createAccount: 'Fungua akaunti yako',
+    fullName: 'Jina kamili',
+    phoneNumber: 'Nambari ya simu',
+    emailAddress: 'Anwani ya barua pepe',
+    confirmEmail: 'Thibitisha barua pepe',
+    vehicleDetails: 'Maelezo ya gari',
+    driver: 'Dereva',
+    rider: 'Abiria',
+    iGiveRides: 'Natoa safari',
+    iNeedRides: 'Nahitaji safari',
+    continueBtn: 'Endelea',
+    registerBtn: 'Jisajili',
+    fullNamePlaceholder: 'mfano: Amara Osei',
+    phonePlaceholder: 'mfano: +254 712 345 678',
+    vehicleMake: 'Chapa ya gari',
+    vehicleModel: 'Mfano wa gari',
+    licensePlate: 'Nambari ya usajili',
+    nationalId: 'Kitambulisho cha taifa',
+    password: 'Nenosiri',
+    emailsDoNotMatch: 'Barua pepe hazifanani',
     requestARide: 'Omba Usafiri',
     confirmRequest: 'Thibitisha Ombi',
     accept: 'Kubali',
@@ -76,29 +138,110 @@ export const translations: Record<Language, Record<TranslationKey, string>> = {
     kmDriven: 'Kilomita Zilizosafirishwa',
     memberSince: 'Mwanachama Tangu',
   },
-  luganda: {
-    requestARide: 'Saba Entambula',
-    confirmRequest: 'Kakasa Okusaba',
-    accept: 'Kiriza',
-    reject: 'Gaana',
-    bargain: 'Sulula Omuwendo',
-    rides: 'Entambula',
-    profile: 'Ebimu',
-    requests: 'Okusaba',
-    signOut: 'Fuluma',
-    waitingForDriver: 'Linda Omuyimbi...',
-    noRideRequests: 'Tewali kusaba kwa entambula kumpi',
-    driverOnTheWay: 'Omuyimbi ajja!',
-    requestCancelled: 'Okusaba kwaggyibwako. Gezaako nate.',
-    pickup: 'Obutonde bw\'Entandikwa',
-    destination: 'Obutonde bw\'Okutuuka',
-    priceOffer: 'Omuwendo Gw\'Okuwaayo',
-    muted: 'Ekizimye',
-    available: 'Kirabika',
-    dashboard: 'Dashibodi',
-    earnings: 'Ensimbi Zonna',
-    ridesCount: 'Omuwendo gw\'Entambula',
-    kmDriven: 'Kilometero Ezaayambulwa',
-    memberSince: 'Munaffe Okuva',
+  rw: {
+    createAccount: 'Fungura konti yawe',
+    fullName: 'Amazina yose',
+    phoneNumber: 'Numero ya telefoni',
+    emailAddress: 'Aderesi ya imeyili',
+    confirmEmail: 'Emeza imeyili',
+    vehicleDetails: "Amakuru y'imodoka",
+    driver: 'Umushoferi',
+    rider: 'Umugenzi',
+    iGiveRides: 'Ntwara abantu',
+    iNeedRides: 'Nkenera gutwara',
+    continueBtn: 'Komeza',
+    registerBtn: 'Iyandikishe',
+    fullNamePlaceholder: 'urugero: Amara Osei',
+    phonePlaceholder: 'urugero: +250 788 123 456',
+    vehicleMake: "Ubwoko bw'imodoka",
+    vehicleModel: "Modeli y'imodoka",
+    licensePlate: "Indangamuntu y'imodoka",
+    nationalId: 'Indangamuntu',
+    password: 'Ijambo banga',
+    emailsDoNotMatch: 'Imeyili ntizihura',
+    requestARide: 'Saba Urugendo',
+    confirmRequest: 'Emeza Gusaba',
+    accept: 'Emera',
+    reject: 'Anga',
+    bargain: 'Negociya',
+    rides: 'Inzira',
+    profile: 'Umwirondoro',
+    requests: 'Izisabwa',
+    signOut: 'Sohoka',
+    waitingForDriver: 'Gutegereza umushoferi...',
+    noRideRequests: 'Nta gusaba urugendo hafi',
+    driverOnTheWay: 'Umushoferi ari mu nzira!',
+    requestCancelled: 'Gusaba byahagaritswe. Ongera ugerageze.',
+    pickup: 'Aho Uzafatirwa',
+    destination: 'Aho Ugiye',
+    priceOffer: 'Igiciro Watanze',
+    muted: 'Yacecetse',
+    available: 'Ahari',
+    dashboard: 'Imbonerahamwe',
+    earnings: 'Amafaranga Yose',
+    ridesCount: 'Umubare w\'Inzira',
+    kmDriven: 'Kilometero Zanyuze',
+    memberSince: 'Umunyamuryango Kuva',
+  },
+  am: {
+    createAccount: 'መለያ ይፍጠሩ',
+    fullName: 'ሙሉ ስም',
+    phoneNumber: 'ስልክ ቁጥር',
+    emailAddress: 'ኢሜይል አድራሻ',
+    confirmEmail: 'ኢሜይል ያረጋግጡ',
+    vehicleDetails: 'የተሽከርካሪ ዝርዝሮች',
+    driver: 'አሽከርካሪ',
+    rider: 'ተሳፋሪ',
+    iGiveRides: 'ጉዞ እሰጣለሁ',
+    iNeedRides: 'ጉዞ እፈልጋለሁ',
+    continueBtn: 'ቀጥል',
+    registerBtn: 'ይመዝገቡ',
+    fullNamePlaceholder: 'ለምሳሌ: አማራ ኦሴ',
+    phonePlaceholder: 'ለምሳሌ: +251 912 345 678',
+    vehicleMake: 'የተሽከርካሪ ዓይነት',
+    vehicleModel: 'የተሽከርካሪ ሞዴል',
+    licensePlate: 'የሰሌዳ ቁጥር',
+    nationalId: 'ብሔራዊ መታወቂያ',
+    password: 'የይለፍ ቃል',
+    emailsDoNotMatch: 'ኢሜይሎች አይዛመዱም',
+    requestARide: 'ጉዞ ይጠይቁ',
+    confirmRequest: 'ጥያቄ ያረጋግጡ',
+    accept: 'ተቀበል',
+    reject: 'ውድቅ',
+    bargain: 'ድርድር',
+    rides: 'ጉዞዎች',
+    profile: 'መገለጫ',
+    requests: 'ጥያቄዎች',
+    signOut: 'ውጣ',
+    waitingForDriver: 'አሽከርካሪ እየጠበቅን...',
+    noRideRequests: 'ቅርብ ጉዞ ጥያቄዎች የሉም',
+    driverOnTheWay: 'አሽከርካሪ በመምጣት ላይ ነው!',
+    requestCancelled: 'ጥያቄ ተሰርዟል። እባክዎ እንደገና ይሞክሩ።',
+    pickup: 'መነሻ ቦታ',
+    destination: 'መድረሻ',
+    priceOffer: 'የዋጋ ቅናሽ',
+    muted: 'ድምጽ ጠፍቷል',
+    available: 'ይገኛል',
+    dashboard: 'ዳሽቦርድ',
+    earnings: 'ጠቅላላ ገቢ',
+    ridesCount: 'የጉዞ ብዛት',
+    kmDriven: 'የተጓዙ ኪሎሜትሮች',
+    memberSince: 'አባል ከሆኑበት',
   },
 };
+
+/** Map a country name to its default language code */
+export function countryToLanguage(country: string): Language {
+  const map: Record<string, Language> = {
+    kenya: 'sw',
+    uganda: 'sw',
+    tanzania: 'sw',
+    rwanda: 'rw',
+    ethiopia: 'am',
+    burundi: 'fr' as Language, // fallback to en below
+    'south sudan': 'en',
+  };
+  const code = map[country.toLowerCase()];
+  if (code === ('fr' as Language)) return 'en'; // French not yet supported
+  return code ?? 'en';
+}

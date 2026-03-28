@@ -15,6 +15,7 @@ import { useRouter } from 'expo-router';
 import { COLORS } from '@/constants/colors';
 import { AnimatedPressable } from '@/components/AnimatedPressable';
 import { Car, User, ChevronDown, Check } from 'lucide-react-native';
+import { countryToLanguage } from '@/constants/translations';
 
 const LOGO = require('../assets/images/9829a994-e39e-4ffe-a130-d61d8cab00e2.png');
 
@@ -156,6 +157,15 @@ export default function WelcomeScreen() {
   const [countryModalOpen, setCountryModalOpen] = useState(false);
   const [languageModalOpen, setLanguageModalOpen] = useState(false);
 
+  // Auto-derive language code from country selection
+  const handleCountrySelect = (key: string) => {
+    console.log('[Welcome] Country selected:', key);
+    setCountry(key);
+    const autoLang = countryToLanguage(key);
+    console.log('[Welcome] Auto-setting language code:', autoLang);
+    setLanguage(autoLang);
+  };
+
   const canContinue = country !== null && language !== null && userType !== null;
 
   const selectedCountryObj = COUNTRIES.find((c) => c.key === country);
@@ -189,7 +199,7 @@ export default function WelcomeScreen() {
         title="Select Country"
         items={COUNTRIES}
         selectedKey={country}
-        onSelect={setCountry}
+        onSelect={handleCountrySelect}
         onClose={() => setCountryModalOpen(false)}
       />
       <SelectorModal

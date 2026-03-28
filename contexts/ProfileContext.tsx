@@ -9,8 +9,8 @@ export interface Profile {
   first_name: string;
   last_name: string;
   resident_district: string;
-  country: 'kenya' | 'tanzania' | 'uganda';
-  language: 'english' | 'swahili' | 'luganda';
+  country: string;
+  language: string;
   mobile_number?: string;
   profile_picture_url?: string;
   created_at: string;

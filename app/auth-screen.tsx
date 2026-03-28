@@ -28,6 +28,7 @@ import {
 } from 'lucide-react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { apiPost } from '@/utils/api';
+import { useTranslation } from '@/hooks/useTranslation';
 
 const LOGO = require('../assets/images/9829a994-e39e-4ffe-a130-d61d8cab00e2.png');
 
@@ -132,6 +133,8 @@ export default function AuthScreen() {
   const language = params.language ?? null;
   const userType = (params.userType as 'driver' | 'rider') ?? null;
 
+  const { t } = useTranslation(language);
+
   // Common fields
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
@@ -161,8 +164,8 @@ export default function AuthScreen() {
   const isDriver = userType === 'driver';
   const isRider = userType === 'rider';
 
-  const userTypeLabel = isDriver ? 'Driver' : isRider ? 'Rider' : null;
-  const userTypeDesc = isDriver ? 'I give rides' : isRider ? 'I need rides' : null;
+  const userTypeLabel = isDriver ? t('driver') : isRider ? t('rider') : null;
+  const userTypeDesc = isDriver ? t('iGiveRides') : isRider ? t('iNeedRides') : null;
 
   const validateEmail = () => {
     if (!email) { setEmailError('Email is required'); return false; }
@@ -202,7 +205,7 @@ export default function AuthScreen() {
       last_name: lastName,
       mobile_number: phone.trim(),
       country: country?.toLowerCase() ?? 'kenya',
-      language: language?.toLowerCase() ?? 'english',
+      language: language?.toLowerCase() ?? 'en',
     };
 
     console.log('[AuthScreen] Saving profile data:', basePayload);
@@ -389,18 +392,18 @@ export default function AuthScreen() {
                 marginBottom: 24,
               }}
             >
-              Create your account
+              {t('createAccount')}
             </Text>
 
             {/* Full Name */}
             <InputField
-              label="Full Name"
+              label={t('fullName')}
               value={fullName}
               onChangeText={(v) => {
                 console.log('[AuthScreen] Full name changed');
                 setFullName(v);
               }}
-              placeholder="e.g. Amara Osei"
+              placeholder={t('fullNamePlaceholder')}
               keyboardType="default"
               autoCapitalize="words"
               icon={<User size={18} color={COLORS.textTertiary} />}
@@ -408,13 +411,13 @@ export default function AuthScreen() {
 
             {/* Phone Number */}
             <InputField
-              label="Phone Number"
+              label={t('phoneNumber')}
               value={phone}
               onChangeText={(v) => {
                 console.log('[AuthScreen] Phone number changed');
                 setPhone(v);
               }}
-              placeholder="e.g. +254 712 345 678"
+              placeholder={t('phonePlaceholder')}
               keyboardType="phone-pad"
               autoCapitalize="none"
               icon={<Phone size={18} color={COLORS.textTertiary} />}
@@ -431,7 +434,7 @@ export default function AuthScreen() {
                   marginBottom: 6,
                 }}
               >
-                Email address
+                {t('emailAddress')}
               </Text>
               <View
                 style={{
@@ -492,7 +495,7 @@ export default function AuthScreen() {
                   marginBottom: 6,
                 }}
               >
-                Confirm email address
+                {t('confirmEmail')}
               </Text>
               <View
                 style={{
@@ -543,7 +546,7 @@ export default function AuthScreen() {
                     marginTop: 4,
                   }}
                 >
-                  Emails do not match
+                  {t('emailsDoNotMatch')}
                 </Text>
               ) : null}
             </View>
@@ -572,11 +575,11 @@ export default function AuthScreen() {
                     marginBottom: 14,
                   }}
                 >
-                  Vehicle Details
+                  {t('vehicleDetails')}
                 </Text>
 
                 <InputField
-                  label="Vehicle Make & Model"
+                  label={t('vehicleMake')}
                   value={vehicleMakeModel}
                   onChangeText={(v) => {
                     console.log('[AuthScreen] Vehicle make/model changed');
@@ -589,7 +592,7 @@ export default function AuthScreen() {
                 />
 
                 <InputField
-                  label="License Plate Number"
+                  label={t('licensePlate')}
                   value={licensePlate}
                   onChangeText={(v) => {
                     console.log('[AuthScreen] License plate changed');
@@ -603,7 +606,7 @@ export default function AuthScreen() {
 
                 <View style={{ marginBottom: 0 }}>
                   <InputField
-                    label="National ID / Driver's License Number"
+                    label={t('nationalId')}
                     value={nationalId}
                     onChangeText={(v) => {
                       console.log('[AuthScreen] National ID changed');
@@ -667,7 +670,7 @@ export default function AuthScreen() {
                     fontFamily: 'Nunito_700Bold',
                   }}
                 >
-                  Create Account
+                  {t('registerBtn')}
                 </Text>
               )}
             </AnimatedPressable>

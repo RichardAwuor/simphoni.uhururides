@@ -2,7 +2,7 @@
   "expo": {
     "name": "uhuru-east-africa-is",
     "slug": "uhuru-east-africa-is-dkzvhr",
-    "version": "1.0.10",
+    "version": "1.0.11",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
@@ -24,7 +24,7 @@
         "backgroundColor": "#F5C518"
       },
       "package": "com.uhururides.app",
-      "versionCode": 11
+      "versionCode": 12
     },
     "web": {
       "favicon": "./assets/images/b5bc66af-b6dd-4cb6-821a-39afe88833d9.png",

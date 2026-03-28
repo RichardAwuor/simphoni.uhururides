@@ -2,6 +2,7 @@ import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { eq, and, inArray, gte, lte, or } from 'drizzle-orm';
 import { createId } from '@paralleldrive/cuid2';
 import * as schema from '../db/schema/schema.js';
+import * as authSchema from '../db/schema/auth-schema.js';
 import type { App } from '../index.js';
 
 interface CreateProfileBody {
@@ -301,26 +302,79 @@ export function register(app: App, fastify: FastifyInstance) {
       },
     },
   }, async (request: FastifyRequest, reply: FastifyReply) => {
-    const session = await requireAuth(request, reply);
-    if (!session) return;
+    // Extract Bearer token from Authorization header
+    const authHeader = request.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      app.logger.warn({}, 'Missing or invalid Authorization header');
+      return reply.status(401).send({ message: 'Unauthorized' });
+    }
 
-    const userId = session.user.id;
-    app.logger.info({ userId }, 'Getting user profile');
+    const token = authHeader.substring(7);
+    app.logger.info({ tokenPresent: true }, 'Extracted Bearer token');
 
     try {
-      const profile = await app.db.query.profiles.findFirst({
+      // Query session by token and check expiration
+      const sessionRecord = await app.db.query.session.findFirst({
+        where: and(
+          eq(authSchema.session.token, token),
+          gte(authSchema.session.expiresAt, new Date())
+        ),
+      });
+
+      if (!sessionRecord) {
+        app.logger.warn({ tokenPresent: true }, 'Session not found or expired');
+        return reply.status(401).send({ message: 'Unauthorized' });
+      }
+
+      const userId = sessionRecord.userId;
+      app.logger.info({ userId }, 'Getting user profile');
+
+      // Query profile by user_id
+      let profile = await app.db.query.profiles.findFirst({
         where: eq(schema.profiles.user_id, userId),
       });
 
+      // If profile doesn't exist, auto-create one from user data
       if (!profile) {
-        app.logger.info({ userId }, 'Profile not found');
-        return reply.status(404).send({ message: 'Profile not found' });
+        app.logger.info({ userId }, 'Profile not found, attempting to create');
+
+        const user = await app.db.query.user.findFirst({
+          where: eq(authSchema.user.id, userId),
+        });
+
+        if (!user) {
+          app.logger.warn({ userId }, 'User not found');
+          return reply.status(404).send({ message: 'User not found' });
+        }
+
+        // Split user name into first and last name
+        const nameParts = (user.name || 'User').trim().split(/\s+/);
+        const firstName = nameParts[0] || 'User';
+        const lastName = nameParts.slice(1).join(' ') || '';
+
+        const profileId = createId();
+        const [created] = await app.db.insert(schema.profiles).values({
+          id: profileId,
+          user_id: userId,
+          user_type: 'rider', // default to rider
+          first_name: firstName,
+          last_name: lastName,
+          full_name: user.name,
+          resident_district: 'Kampala',
+          country: 'uganda', // default to Uganda
+          language: 'english', // default to English
+          profile_picture_url: user.image,
+          role: 'rider',
+        }).returning();
+
+        profile = created;
+        app.logger.info({ userId, profileId }, 'Profile auto-created successfully');
       }
 
       app.logger.info({ userId, profileId: profile.id }, 'User profile retrieved successfully');
       return reply.status(200).send(profile);
     } catch (error) {
-      app.logger.error({ err: error, userId }, 'Failed to get user profile');
+      app.logger.error({ err: error }, 'Failed to get user profile');
       throw error;
     }
   });
@@ -356,13 +410,33 @@ export function register(app: App, fastify: FastifyInstance) {
       request: FastifyRequest,
       reply: FastifyReply
     ) => {
-      const session = await requireAuth(request, reply);
-      if (!session) return;
+      // Extract Bearer token from Authorization header
+      const authHeader = request.headers.authorization;
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        app.logger.warn({}, 'Missing or invalid Authorization header for ride stats');
+        return reply.status(401).send({ message: 'Unauthorized' });
+      }
 
-      const userId = session.user.id;
-      app.logger.info({ userId }, 'Getting ride statistics');
+      const token = authHeader.substring(7);
+      app.logger.info({ tokenPresent: true }, 'Extracted Bearer token for ride stats');
 
       try {
+        // Query session by token and check expiration
+        const sessionRecord = await app.db.query.session.findFirst({
+          where: and(
+            eq(authSchema.session.token, token),
+            gte(authSchema.session.expiresAt, new Date())
+          ),
+        });
+
+        if (!sessionRecord) {
+          app.logger.warn({ tokenPresent: true }, 'Session not found or expired for ride stats');
+          return reply.status(401).send({ message: 'Unauthorized' });
+        }
+
+        const userId = sessionRecord.userId;
+        app.logger.info({ userId }, 'Getting ride statistics');
+
         // Count total rides as rider
         const totalRidesAsRider = await app.db.query.ride_requests.findMany({
           where: eq(schema.ride_requests.rider_id, userId),
@@ -420,7 +494,7 @@ export function register(app: App, fastify: FastifyInstance) {
           completed_rides_as_driver: completedRidesAsDriver,
         });
       } catch (error) {
-        app.logger.error({ err: error, userId }, 'Failed to get ride statistics');
+        app.logger.error({ err: error }, 'Failed to get ride statistics');
         throw error;
       }
     }

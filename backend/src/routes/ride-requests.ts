@@ -323,7 +323,7 @@ export function register(app: App, fastify: FastifyInstance) {
         driver_attempt_count: 0,
         routing_count: 0,
         routed_driver_ids: '',
-        driver_id: nearestDriver?.user_id || null,
+        driver_id: null,
         rider_phone: riderPhone,
         rider_name: riderName,
       }).returning();
@@ -557,17 +557,18 @@ export function register(app: App, fastify: FastifyInstance) {
         return reply.status(404).send({ error: 'Ride request not found' });
       }
 
-      // Verify driver_id matches
-      if (ride.driver_id !== userId) {
+      // Verify driver_id matches or is unassigned (null)
+      if (ride.driver_id && ride.driver_id !== userId) {
         app.logger.warn({ rideId: id, userId, assignedDriver: ride.driver_id }, 'Driver not assigned to this ride');
         return reply.status(403).send({ error: 'Not assigned to this ride' });
       }
 
-      // Update ride: status='accepted', final_price=price_offer
+      // Update ride: status='accepted', final_price=price_offer, assign driver if not already assigned
       await app.db.update(schema.ride_requests)
         .set({
           status: 'accepted',
           final_price: ride.price_offer,
+          driver_id: userId,
           updated_at: new Date(),
         })
         .where(eq(schema.ride_requests.id, id));
@@ -661,8 +662,8 @@ export function register(app: App, fastify: FastifyInstance) {
         return reply.status(404).send({ error: 'Ride request not found' });
       }
 
-      // Verify driver_id matches
-      if (ride.driver_id !== userId) {
+      // Verify driver_id matches or is unassigned (null)
+      if (ride.driver_id && ride.driver_id !== userId) {
         app.logger.warn({ rideId: id, userId, assignedDriver: ride.driver_id }, 'Driver not assigned to this ride');
         return reply.status(403).send({ error: 'Not assigned to this ride' });
       }
@@ -671,6 +672,13 @@ export function register(app: App, fastify: FastifyInstance) {
       if (ride.status !== 'pending') {
         app.logger.warn({ rideId: id, status: ride.status }, 'Ride not in pending status');
         return reply.status(400).send({ error: 'Ride is not in pending status' });
+      }
+
+      // Assign driver if not already assigned
+      if (!ride.driver_id) {
+        await app.db.update(schema.ride_requests)
+          .set({ driver_id: userId })
+          .where(eq(schema.ride_requests.id, id));
       }
 
       // Calculate bargain price: price_offer * (1 + bargain_percent / 100)
@@ -761,10 +769,17 @@ export function register(app: App, fastify: FastifyInstance) {
         return reply.status(404).send({ error: 'Ride request not found' });
       }
 
-      // Verify driver_id matches
-      if (ride.driver_id !== userId) {
+      // Verify driver_id matches or is unassigned (null)
+      if (ride.driver_id && ride.driver_id !== userId) {
         app.logger.warn({ rideId: id, userId, assignedDriver: ride.driver_id }, 'Driver not assigned to this ride');
         return reply.status(403).send({ error: 'Not assigned to this ride' });
+      }
+
+      // Assign driver if not already assigned
+      if (!ride.driver_id) {
+        await app.db.update(schema.ride_requests)
+          .set({ driver_id: userId })
+          .where(eq(schema.ride_requests.id, id));
       }
 
       // Insert attempt record

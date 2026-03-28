@@ -6,9 +6,14 @@ import { user } from '../db/schema/auth-schema.js';
 import type { App } from '../index.js';
 
 interface CreateDriverDetailsBody {
-  vehicleMake: 'Toyota' | 'Nissan' | 'Ford' | 'Mercedes' | 'Volkswagen' | 'Others';
-  licensePlate: string;
-  licenseNumber: string;
+  vehicle_type?: string;
+  car_make?: string;
+  car_registration?: string;
+  national_id?: string;
+  // Legacy fields for backwards compatibility
+  vehicleMake?: 'Toyota' | 'Nissan' | 'Ford' | 'Mercedes' | 'Volkswagen' | 'Others';
+  licensePlate?: string;
+  licenseNumber?: string;
 }
 
 interface UpdateAvailabilityBody {
@@ -25,8 +30,12 @@ export function register(app: App, fastify: FastifyInstance) {
       tags: ['driver'],
       body: {
         type: 'object',
-        required: ['vehicleMake', 'licensePlate', 'licenseNumber'],
         properties: {
+          vehicle_type: { type: 'string' },
+          car_make: { type: 'string' },
+          car_registration: { type: 'string' },
+          national_id: { type: 'string' },
+          // Legacy fields
           vehicleMake: { type: 'string', enum: ['Toyota', 'Nissan', 'Ford', 'Mercedes', 'Volkswagen', 'Others'] },
           licensePlate: { type: 'string' },
           licenseNumber: { type: 'string' },
@@ -60,25 +69,39 @@ export function register(app: App, fastify: FastifyInstance) {
     const session = await requireAuth(request, reply);
     if (!session) return;
 
-    const { vehicleMake, licensePlate, licenseNumber } = request.body;
+    // Handle both new and legacy field names
+    const carMake = request.body.car_make || request.body.vehicleMake || 'Others';
+    const carRegistration = request.body.car_registration || request.body.licensePlate || '';
+    const licenseNum = request.body.licenseNumber || '';
+    const vehicleType = request.body.vehicle_type || '';
+    const nationalId = request.body.national_id || '';
 
-    app.logger.info({ userId: session.user.id, vehicleMake }, 'Upserting driver details');
+    app.logger.info({ userId: session.user.id, carMake }, 'Upserting driver details');
 
     try {
+      // Map car_make to enum value if it's not already valid
+      let carMakeValue: 'Toyota' | 'Nissan' | 'Ford' | 'Mercedes' | 'Volkswagen' | 'Others' = 'Others';
+      const validMakes = ['Toyota', 'Nissan', 'Ford', 'Mercedes', 'Volkswagen', 'Others'];
+      if (validMakes.includes(carMake)) {
+        carMakeValue = carMake as 'Toyota' | 'Nissan' | 'Ford' | 'Mercedes' | 'Volkswagen' | 'Others';
+      }
+
       const existingDetails = await app.db.query.driver_details.findFirst({
         where: eq(schema.driver_details.user_id, session.user.id),
       });
 
+      const driverDetailsData = {
+        car_make: carMakeValue,
+        car_registration: carRegistration ? carRegistration.toUpperCase() : '',
+        license_number: licenseNum,
+        car_color: '',
+        is_available: false,
+      };
+
       let details;
       if (existingDetails) {
         const [updated] = await app.db.update(schema.driver_details)
-          .set({
-            car_make: vehicleMake,
-            car_registration: licensePlate.toUpperCase(),
-            license_number: licenseNumber,
-            car_color: 'white',
-            is_available: false,
-          })
+          .set(driverDetailsData)
           .where(eq(schema.driver_details.user_id, session.user.id))
           .returning();
         details = updated;
@@ -87,14 +110,26 @@ export function register(app: App, fastify: FastifyInstance) {
         const [created] = await app.db.insert(schema.driver_details).values({
           id: driverId,
           user_id: session.user.id,
-          car_make: vehicleMake,
-          car_registration: licensePlate.toUpperCase(),
-          car_color: 'white',
-          is_available: false,
-          license_number: licenseNumber,
+          ...driverDetailsData,
         }).returning();
         details = created;
       }
+
+      // Also update profiles table with vehicle information
+      const profileUpdates: any = {
+        vehicle_make: carMake,
+        license_plate: carRegistration,
+      };
+      if (vehicleType) {
+        profileUpdates.vehicle_model = vehicleType;
+      }
+      if (nationalId) {
+        profileUpdates.national_id = nationalId;
+      }
+
+      await app.db.update(schema.profiles)
+        .set(profileUpdates)
+        .where(eq(schema.profiles.user_id, session.user.id));
 
       app.logger.info({ userId: session.user.id, driverId: details.id }, 'Driver details upserted successfully');
       return details;

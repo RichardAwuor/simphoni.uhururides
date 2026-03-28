@@ -935,23 +935,24 @@ export default function ProfileScreen() {
   const [error, setError] = useState<string | null>(null);
 
   const fetchProfile = useCallback(async () => {
-    console.log('[ProfileScreen] Fetching /api/profile');
+    console.log('[ProfileScreen] Fetching /api/profiles/me');
     setLoading(true);
     setError(null);
     try {
-      const raw = await apiGet<any>('/api/profile');
-      console.log('[ProfileScreen] Profile raw response:', raw);
+      const raw = await apiGet<any>('/api/profiles/me');
+      console.log('[ProfileScreen] Profile raw response — phone:', raw.phone, 'mobile_number:', raw.mobile_number, 'phone_number:', raw.phone_number);
       // Normalize role: backend may return user_type instead of role
       const normalizedRole: 'rider' | 'driver' = raw.role ?? raw.user_type ?? 'rider';
-      // Normalize phone: backend may return mobile_number instead of phone
-      const normalizedPhone: string = raw.phone || raw.mobile_number || '';
+      // Normalize phone: try all possible field names the backend may return
+      const normalizedPhone: string = raw.phone || raw.mobile_number || raw.phone_number || '';
       const data: ApiProfile = {
         ...raw,
         role: normalizedRole,
         user_type: normalizedRole,
         phone: normalizedPhone,
+        mobile_number: raw.mobile_number || raw.phone || raw.phone_number || '',
       };
-      console.log('[ProfileScreen] Profile normalized — role:', data.role, 'phone:', data.phone);
+      console.log('[ProfileScreen] Profile normalized — role:', data.role, 'phone:', data.phone, 'mobile_number:', data.mobile_number);
       setProfile(data);
     } catch (e: any) {
       console.error('[ProfileScreen] Profile fetch failed:', e);

@@ -12,6 +12,8 @@ export interface Profile {
   name: string;
   email: string;
   phone?: string;
+  mobile_number?: string;
+  phone_number?: string;
   city?: string;
   created_at: string;
 }

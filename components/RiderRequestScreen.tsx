@@ -19,6 +19,7 @@ import * as Location from 'expo-location';
 import { Car, Zap, Bike, MapPin, Flag, ChevronLeft, ChevronRight, CheckCircle, XCircle } from 'lucide-react-native';
 import { AnimatedPressable } from '@/components/AnimatedPressable';
 import { apiPost, apiGet } from '@/utils/api';
+import { useProfile } from '@/contexts/ProfileContext';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -29,8 +30,18 @@ const TEXT = '#1A1A1A';
 const TEXT_SECONDARY = '#6B7280';
 const TEXT_TERTIARY = '#9CA3AF';
 
-const CURRENCIES = ['UGX', 'KES', 'TZS', 'RWF', 'ETB'] as const;
+const CURRENCIES = ['KES', 'UGX', 'TZS', 'RWF', 'ETB', 'BIF', 'SSP'] as const;
 type Currency = typeof CURRENCIES[number];
+
+const COUNTRY_CURRENCY: Record<string, Currency> = {
+  kenya: 'KES',
+  uganda: 'UGX',
+  tanzania: 'TZS',
+  rwanda: 'RWF',
+  ethiopia: 'ETB',
+  burundi: 'BIF',
+  'south sudan': 'SSP',
+};
 
 type VehicleType = 'car' | 'tuktuk' | 'motorbike';
 
@@ -494,6 +505,13 @@ const bm = StyleSheet.create({
 
 export default function RiderRequestScreen() {
   const insets = useSafeAreaInsets();
+  const { profile } = useProfile();
+
+  // Derive currency from profile country
+  const profileCurrency = React.useMemo(() => {
+    const country = (profile as any)?.country?.toLowerCase() ?? '';
+    return COUNTRY_CURRENCY[country] ?? 'KES';
+  }, [profile]);
 
   // Wizard state
   const [step, setStep] = useState<1 | 2 | 3>(1);
@@ -507,7 +525,12 @@ export default function RiderRequestScreen() {
   const [locationLoading, setLocationLoading] = useState(false);
 
   // Step 3
-  const [currency, setCurrency] = useState<Currency>('KES');
+  const [currency, setCurrency] = useState<Currency>(profileCurrency);
+
+  // Sync currency when profile loads
+  useEffect(() => {
+    setCurrency(profileCurrency);
+  }, [profileCurrency]);
   const [priceInput, setPriceInput] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
@@ -911,23 +934,14 @@ export default function RiderRequestScreen() {
           <View>
             <Text style={s.heading}>Set your price</Text>
 
-            {/* Currency selector */}
-            <View style={s.currencyRow}>
-              {CURRENCIES.map((c) => {
-                const isSelected = currency === c;
-                return (
-                  <TouchableOpacity
-                    key={c}
-                    onPress={() => {
-                      console.log('[RiderRequest] Currency selected:', c);
-                      setCurrency(c);
-                    }}
-                    style={[s.currencyPill, isSelected && s.currencyPillSelected]}
-                  >
-                    <Text style={[s.currencyPillText, isSelected && s.currencyPillTextSelected]}>{c}</Text>
-                  </TouchableOpacity>
-                );
-              })}
+            {/* Currency display (auto-set from profile country) */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+              <View style={[s.currencyPill, s.currencyPillSelected]}>
+                <Text style={[s.currencyPillText, s.currencyPillTextSelected]}>{currency}</Text>
+              </View>
+              <Text style={{ fontSize: 13, color: '#888', fontFamily: 'Nunito_400Regular', marginLeft: 10 }}>
+                Currency based on your country
+              </Text>
             </View>
 
             {/* Price input */}

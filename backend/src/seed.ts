@@ -191,6 +191,93 @@ async function seed() {
 
     console.log('Created ride history record');
 
+    // Add 3 new sample ride requests as per task requirements
+    const seedNow = new Date();
+
+    // Sample ride 1: Amina Wanjiku
+    await app.db.insert(appSchema.ride_requests).values({
+      id: createId(),
+      rider_id: riderId,
+      rider_name: 'Amina Wanjiku',
+      rider_phone: '+254712345678',
+      pickup_location: 'Westlands, Nairobi',
+      pickup_address: 'Westlands Shopping Centre, Waiyaki Way',
+      pickup_lat: -1.2676,
+      pickup_lng: 36.8108,
+      destination: 'CBD, Nairobi',
+      destination_address: 'Kencom Bus Stop, Moi Avenue',
+      distance_km: 4.2,
+      price_offer: 450,
+      currency: 'KES',
+      status: 'pending',
+      driver_attempt_count: 0,
+      routing_count: 0,
+      routed_driver_ids: '',
+      current_driver_id: null,
+      bargain_price: null,
+      bargain_multiplier: null,
+      created_at: seedNow,
+      updated_at: seedNow,
+    });
+
+    console.log('Created sample ride 1: Amina Wanjiku');
+
+    // Sample ride 2: Brian Otieno
+    await app.db.insert(appSchema.ride_requests).values({
+      id: createId(),
+      rider_id: riderId,
+      rider_name: 'Brian Otieno',
+      rider_phone: '+254723456789',
+      pickup_location: 'Kilimani, Nairobi',
+      pickup_address: 'Yaya Centre, Argwings Kodhek Road',
+      pickup_lat: -1.2921,
+      pickup_lng: 36.7873,
+      destination: 'Upper Hill, Nairobi',
+      destination_address: 'Upperhill Medical Centre, Hospital Road',
+      distance_km: 2.8,
+      price_offer: 320,
+      currency: 'KES',
+      status: 'pending',
+      driver_attempt_count: 0,
+      routing_count: 0,
+      routed_driver_ids: '',
+      current_driver_id: null,
+      bargain_price: null,
+      bargain_multiplier: null,
+      created_at: seedNow,
+      updated_at: seedNow,
+    });
+
+    console.log('Created sample ride 2: Brian Otieno');
+
+    // Sample ride 3: Grace Muthoni
+    await app.db.insert(appSchema.ride_requests).values({
+      id: createId(),
+      rider_id: riderId,
+      rider_name: 'Grace Muthoni',
+      rider_phone: '+254734567890',
+      pickup_location: 'Eastleigh, Nairobi',
+      pickup_address: 'Eastleigh Section 1, 1st Avenue',
+      pickup_lat: -1.2741,
+      pickup_lng: 36.8490,
+      destination: 'Jomo Kenyatta International Airport',
+      destination_address: 'JKIA Departure Terminal, Airport North Road',
+      distance_km: 14.5,
+      price_offer: 1800,
+      currency: 'KES',
+      status: 'pending',
+      driver_attempt_count: 0,
+      routing_count: 0,
+      routed_driver_ids: '',
+      current_driver_id: null,
+      bargain_price: null,
+      bargain_multiplier: null,
+      created_at: seedNow,
+      updated_at: seedNow,
+    });
+
+    console.log('Created sample ride 3: Grace Muthoni');
+
     console.log('Seed completed successfully!');
     process.exit(0);
   } catch (error) {

@@ -506,16 +506,8 @@ describe("API Integration Tests", () => {
       expect(data.id).toBe(rideRequestId);
     });
 
-    test("Get ride requests as rider", async () => {
-      const res = await authenticatedApi("/api/ride-requests?role=rider", riderToken);
-      await expectStatus(res, 200);
-      const data = await res.json();
-      expect(data.requests).toBeDefined();
-      expect(Array.isArray(data.requests)).toBe(true);
-    });
-
-    test("Get ride requests as driver with location", async () => {
-      const res = await authenticatedApi("/api/ride-requests?role=driver&lat=-1.2921&lng=36.8219", authToken);
+    test("Get available ride requests", async () => {
+      const res = await authenticatedApi("/api/ride-requests", authToken);
       await expectStatus(res, 200);
       const data = await res.json();
       expect(data.requests).toBeDefined();
@@ -559,29 +551,21 @@ describe("API Integration Tests", () => {
       rideRequestId = data.id;
     });
 
-    test("Send bargain offer", async () => {
+    test("Send bargain offer with multiplier", async () => {
       const res = await authenticatedApi(`/api/ride-requests/${rideRequestId}/bargain`, authToken, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          bargain_percent: 25,
+          multiplier: 0.85,
         }),
       });
       await expectStatus(res, 200);
+      const data = await res.json();
+      expect(data.success).toBe(true);
+      expect(data.bargain_price).toBeDefined();
     });
 
-    test("Send bargain with invalid percentage should fail", async () => {
-      const res = await authenticatedApi(`/api/ride-requests/${rideRequestId}/bargain`, authToken, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          bargain_percent: 15, // Not in enum: 10, 25, 50
-        }),
-      });
-      await expectStatus(res, 400);
-    });
-
-    test("Send bargain with missing percent should fail", async () => {
+    test("Send bargain with missing multiplier should fail", async () => {
       const res = await authenticatedApi(`/api/ride-requests/${rideRequestId}/bargain`, authToken, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -595,7 +579,7 @@ describe("API Integration Tests", () => {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          bargain_percent: 10,
+          multiplier: 0.9,
         }),
       });
       await expectStatus(res, 404);
@@ -630,7 +614,7 @@ describe("API Integration Tests", () => {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          bargain_percent: 10,
+          multiplier: 0.9,
         }),
       });
       await expectStatus(bargainRes, 200);
@@ -669,7 +653,7 @@ describe("API Integration Tests", () => {
       await expectStatus(res, 404);
     });
 
-    test("Create ride request for ignore test", async () => {
+    test("Create ride request for reject test", async () => {
       const res = await authenticatedApi("/api/ride-requests", riderToken, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -679,6 +663,98 @@ describe("API Integration Tests", () => {
           pickup_lng: 36.8156,
           destination: "Gigiri",
           price_offer: 900,
+          currency: "KES",
+        }),
+      });
+      await expectStatus(res, 201);
+      const data = await res.json();
+      rideRequestId = data.id;
+    });
+
+    test("Reject ride request with 'rejected' action", async () => {
+      const res = await authenticatedApi(`/api/ride-requests/${rideRequestId}/reject`, authToken, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "rejected",
+        }),
+      });
+      await expectStatus(res, 200);
+      const data = await res.json();
+      expect(data.success).toBe(true);
+    });
+
+    test("Reject ride request with 'ignored' action", async () => {
+      const res2 = await authenticatedApi("/api/ride-requests", riderToken, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          pickup_location: "Rosebank",
+          pickup_lat: -1.2890,
+          pickup_lng: 36.8127,
+          destination: "Argwings Kodhek Road",
+          price_offer: 700,
+          currency: "KES",
+        }),
+      });
+      const ride = await res2.json();
+
+      const res = await authenticatedApi(`/api/ride-requests/${ride.id}/reject`, authToken, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "ignored",
+        }),
+      });
+      await expectStatus(res, 200);
+      const data = await res.json();
+      expect(data.success).toBe(true);
+    });
+
+    test("Reject with missing action should fail", async () => {
+      const res2 = await authenticatedApi("/api/ride-requests", riderToken, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          pickup_location: "Lavington",
+          pickup_lat: -1.3139,
+          pickup_lng: 36.7869,
+          destination: "Hurlingham",
+          price_offer: 800,
+          currency: "KES",
+        }),
+      });
+      const ride = await res2.json();
+
+      const res = await authenticatedApi(`/api/ride-requests/${ride.id}/reject`, authToken, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+      await expectStatus(res, 400);
+    });
+
+    test("Reject nonexistent request should return 404", async () => {
+      const res = await authenticatedApi("/api/ride-requests/00000000-0000-0000-0000-000000000000/reject", authToken, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "rejected",
+        }),
+      });
+      await expectStatus(res, 404);
+    });
+
+    test("Create ride request for ignore test", async () => {
+      const res = await authenticatedApi("/api/ride-requests", riderToken, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          pickup_location: "Makadara",
+          pickup_lat: -1.3031,
+          pickup_lng: 36.8633,
+          destination: "Imara Daima",
+          price_offer: 650,
           currency: "KES",
         }),
       });
@@ -733,6 +809,111 @@ describe("API Integration Tests", () => {
       await expectStatus(res, 404);
     });
 
+    test("Create ride request for rider-response test", async () => {
+      const res = await authenticatedApi("/api/ride-requests", riderToken, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          pickup_location: "Valley Arcade",
+          pickup_lat: -1.2890,
+          pickup_lng: 36.8127,
+          destination: "Two Rivers",
+          price_offer: 900,
+          currency: "KES",
+        }),
+      });
+      await expectStatus(res, 201);
+      const data = await res.json();
+      rideRequestId = data.id;
+    });
+
+    test("Rider accepts bargain response", async () => {
+      // First driver sends bargain
+      const bargainRes = await authenticatedApi(`/api/ride-requests/${rideRequestId}/bargain`, authToken, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          multiplier: 0.8,
+        }),
+      });
+      await expectStatus(bargainRes, 200);
+
+      // Then rider responds with acceptance
+      const res = await authenticatedApi(`/api/ride-requests/${rideRequestId}/rider-response`, riderToken, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          accepted: true,
+        }),
+      });
+      await expectStatus(res, 200);
+      const data = await res.json();
+      expect(data.success).toBe(true);
+      expect(data.status).toBeDefined();
+    });
+
+    test("Rider rejects bargain response", async () => {
+      const res2 = await authenticatedApi("/api/ride-requests", riderToken, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          pickup_location: "Nairobi Hospital",
+          pickup_lat: -1.2879,
+          pickup_lng: 36.8066,
+          destination: "Westgate",
+          price_offer: 650,
+          currency: "KES",
+        }),
+      });
+      const ride = await res2.json();
+
+      // Driver sends bargain
+      const bargainRes = await authenticatedApi(`/api/ride-requests/${ride.id}/bargain`, authToken, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          multiplier: 0.7,
+        }),
+      });
+      await expectStatus(bargainRes, 200);
+
+      // Rider rejects
+      const res = await authenticatedApi(`/api/ride-requests/${ride.id}/rider-response`, riderToken, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          accepted: false,
+        }),
+      });
+      await expectStatus(res, 200);
+      const data = await res.json();
+      expect(data.success).toBe(true);
+    });
+
+    test("Rider response with missing accepted should fail", async () => {
+      const res = await authenticatedApi(`/api/ride-requests/${rideRequestId}/rider-response`, riderToken, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+      await expectStatus(res, 400);
+    });
+
+    test("Rider response for nonexistent request should return 404", async () => {
+      const res = await authenticatedApi(
+        "/api/ride-requests/00000000-0000-0000-0000-000000000000/rider-response",
+        riderToken,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            accepted: true,
+          }),
+        }
+      );
+      await expectStatus(res, 404);
+    });
+
     test("Create ride request with missing required fields should fail", async () => {
       const res = await authenticatedApi("/api/ride-requests", authToken, {
         method: "POST",
@@ -762,7 +943,7 @@ describe("API Integration Tests", () => {
     });
 
     test("Get ride requests without auth should return 401", async () => {
-      const res = await api("/api/ride-requests?role=rider");
+      const res = await api("/api/ride-requests");
       await expectStatus(res, 401);
     });
 
@@ -876,6 +1057,68 @@ describe("API Integration Tests", () => {
           is_available: true,
         }),
       });
+      await expectStatus(res, 401);
+    });
+  });
+
+  // Driver Mute Status endpoints
+  describe("Driver Mute Status", () => {
+    let muteTestToken: string;
+
+    test("Setup: Create test user for mute tests", async () => {
+      const { token } = await signUpTestUser();
+      muteTestToken = token;
+    });
+
+    test("Get current mute status", async () => {
+      const res = await authenticatedApi("/api/driver/mute", muteTestToken);
+      await expectStatus(res, 200);
+      const data = await res.json();
+      expect(data.muted).toBeDefined();
+      expect(typeof data.muted).toBe("boolean");
+    });
+
+    test("Mute notifications", async () => {
+      const res = await authenticatedApi("/api/driver/mute", muteTestToken, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          muted: true,
+        }),
+      });
+      await expectStatus(res, 200);
+      const data = await res.json();
+      expect(data.success).toBe(true);
+      expect(data.muted).toBe(true);
+    });
+
+    test("Unmute notifications", async () => {
+      const res = await authenticatedApi("/api/driver/mute", muteTestToken, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          muted: false,
+        }),
+      });
+      await expectStatus(res, 200);
+      const data = await res.json();
+      expect(data.success).toBe(true);
+      expect(data.muted).toBe(false);
+    });
+
+    test("Update mute without auth should return 401", async () => {
+      const res = await api("/api/driver/mute", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          muted: true,
+        }),
+      });
+      await expectStatus(res, 401);
+    });
+
+    test("Get mute status without auth should return 401", async () => {
+      const res = await api("/api/driver/mute");
       await expectStatus(res, 401);
     });
   });

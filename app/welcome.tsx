@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -6,7 +6,6 @@ import {
   Modal,
   TouchableOpacity,
   FlatList,
-  Platform,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { StatusBar } from 'expo-status-bar';
@@ -16,6 +15,7 @@ import { COLORS } from '@/constants/colors';
 import { AnimatedPressable } from '@/components/AnimatedPressable';
 import { Car, User, ChevronDown, Check, Globe } from 'lucide-react-native';
 import { countryToLanguage } from '@/constants/translations';
+import { useTranslation } from '@/hooks/useTranslation';
 
 const LOGO = require('../assets/images/98f09b5e-58e7-47eb-94a3-11af3165b0a3.png');
 
@@ -32,10 +32,10 @@ const COUNTRIES = [
 ];
 
 const LANGUAGES = [
-  { key: 'English', label: 'English' },
-  { key: 'Swahili', label: 'Swahili' },
-  { key: 'French', label: 'French' },
-  { key: 'Amharic', label: 'Amharic' },
+  { key: 'en', label: 'English' },
+  { key: 'sw', label: 'Swahili' },
+  { key: 'rw', label: 'Kinyarwanda' },
+  { key: 'am', label: 'Amharic' },
 ];
 
 function SelectorModal({
@@ -157,6 +157,8 @@ export default function WelcomeScreen() {
   const [countryModalOpen, setCountryModalOpen] = useState(false);
   const [languageModalOpen, setLanguageModalOpen] = useState(false);
 
+  const { t } = useTranslation(language);
+
   // Auto-derive language code from country selection
   const handleCountrySelect = (key: string) => {
     console.log('[Welcome] Country selected:', key);
@@ -166,20 +168,37 @@ export default function WelcomeScreen() {
     setLanguage(autoLang);
   };
 
+  const handleLanguageSelect = (key: string) => {
+    console.log('[Welcome] Language manually selected:', key);
+    setLanguage(key);
+  };
+
   const canContinue = country !== null && language !== null && userType !== null;
 
   const selectedCountryObj = COUNTRIES.find((c) => c.key === country);
   const selectedLanguageObj = LANGUAGES.find((l) => l.key === language);
 
-  const countryLabel = selectedCountryObj ? selectedCountryObj.label : 'Select country';
+  const countryDisplayLabel = selectedCountryObj ? selectedCountryObj.label : t('selectCountry');
   const countryFlag = selectedCountryObj ? selectedCountryObj.flag : null;
-  const languageLabel = selectedLanguageObj ? selectedLanguageObj.label : 'Select language';
+  const languageDisplayLabel = selectedLanguageObj ? selectedLanguageObj.label : t('selectLanguage');
 
   const driverSelected = userType === 'driver';
   const riderSelected = userType === 'rider';
 
   const driverIconColor = driverSelected ? COLORS.text : COLORS.primary;
   const riderIconColor = riderSelected ? COLORS.text : COLORS.primary;
+
+  const tagline = t('appTagline');
+  const countryLabelText = t('countryLabel');
+  const languageLabelText = t('languageLabel');
+  const iAmAText = t('iAmA');
+  const driverText = t('driver');
+  const riderText = t('rider');
+  const iGiveRidesText = t('iGiveRidesShort');
+  const iNeedRidesText = t('iNeedRidesShort');
+  const continueText = t('continueBtn');
+  const selectCountryTitle = t('selectCountryTitle');
+  const selectLanguageTitle = t('selectLanguageTitle');
 
   const handleContinue = () => {
     if (!canContinue) return;
@@ -196,7 +215,7 @@ export default function WelcomeScreen() {
 
       <SelectorModal
         visible={countryModalOpen}
-        title="Select Country"
+        title={selectCountryTitle}
         items={COUNTRIES}
         selectedKey={country}
         onSelect={handleCountrySelect}
@@ -204,10 +223,10 @@ export default function WelcomeScreen() {
       />
       <SelectorModal
         visible={languageModalOpen}
-        title="Select Language"
+        title={selectLanguageTitle}
         items={LANGUAGES}
         selectedKey={language}
-        onSelect={setLanguage}
+        onSelect={handleLanguageSelect}
         onClose={() => setLanguageModalOpen(false)}
       />
 
@@ -248,7 +267,7 @@ export default function WelcomeScreen() {
               textAlign: 'center',
             }}
           >
-            Your ride, your price
+            {tagline}
           </Text>
         </View>
 
@@ -265,7 +284,7 @@ export default function WelcomeScreen() {
               marginBottom: 10,
             }}
           >
-            Country
+            {countryLabelText}
           </Text>
           <AnimatedPressable
             onPress={() => {
@@ -306,7 +325,7 @@ export default function WelcomeScreen() {
                 fontFamily: country ? 'Nunito_600SemiBold' : 'Nunito_400Regular',
               }}
             >
-              {countryLabel}
+              {countryDisplayLabel}
             </Text>
             <ChevronDown size={18} color={COLORS.textTertiary} />
           </AnimatedPressable>
@@ -325,7 +344,7 @@ export default function WelcomeScreen() {
               marginBottom: 10,
             }}
           >
-            Language
+            {languageLabelText}
           </Text>
           <AnimatedPressable
             onPress={() => {
@@ -354,7 +373,7 @@ export default function WelcomeScreen() {
                 fontFamily: language ? 'Nunito_600SemiBold' : 'Nunito_400Regular',
               }}
             >
-              {languageLabel}
+              {languageDisplayLabel}
             </Text>
             <ChevronDown size={18} color={COLORS.textTertiary} />
           </AnimatedPressable>
@@ -373,7 +392,7 @@ export default function WelcomeScreen() {
               marginBottom: 12,
             }}
           >
-            I am a...
+            {iAmAText}
           </Text>
           <View style={{ flexDirection: 'row', gap: 14 }}>
             {/* Driver Card */}
@@ -417,7 +436,7 @@ export default function WelcomeScreen() {
                   fontFamily: 'Nunito_800ExtraBold',
                 }}
               >
-                Driver
+                {driverText}
               </Text>
               <Text
                 style={{
@@ -427,7 +446,7 @@ export default function WelcomeScreen() {
                   textAlign: 'center',
                 }}
               >
-                I give rides
+                {iGiveRidesText}
               </Text>
               {driverSelected ? (
                 <View
@@ -489,7 +508,7 @@ export default function WelcomeScreen() {
                   fontFamily: 'Nunito_800ExtraBold',
                 }}
               >
-                Rider
+                {riderText}
               </Text>
               <Text
                 style={{
@@ -499,7 +518,7 @@ export default function WelcomeScreen() {
                   textAlign: 'center',
                 }}
               >
-                I need rides
+                {iNeedRidesText}
               </Text>
               {riderSelected ? (
                 <View
@@ -573,7 +592,7 @@ export default function WelcomeScreen() {
               fontFamily: 'Nunito_700Bold',
             }}
           >
-            Continue
+            {continueText}
           </Text>
         </AnimatedPressable>
       </ScrollView>

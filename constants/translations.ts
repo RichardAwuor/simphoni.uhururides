@@ -1,6 +1,17 @@
 export type Language = 'en' | 'sw' | 'rw' | 'am';
 
 export type TranslationKey =
+  // Welcome screen
+  | 'appTagline'
+  | 'countryLabel'
+  | 'languageLabel'
+  | 'selectCountry'
+  | 'selectLanguage'
+  | 'iAmA'
+  | 'iGiveRidesShort'
+  | 'iNeedRidesShort'
+  | 'selectCountryTitle'
+  | 'selectLanguageTitle'
   // Auth / registration screen
   | 'createAccount'
   | 'fullName'
@@ -49,6 +60,16 @@ export type TranslationKey =
 
 export const translations: Record<Language, Record<TranslationKey, string>> = {
   en: {
+    appTagline: 'Your ride, your price',
+    countryLabel: 'Country',
+    languageLabel: 'Language',
+    selectCountry: 'Select country',
+    selectLanguage: 'Select language',
+    iAmA: 'I am a...',
+    iGiveRidesShort: 'I give rides',
+    iNeedRidesShort: 'I need rides',
+    selectCountryTitle: 'Select Country',
+    selectLanguageTitle: 'Select Language',
     createAccount: 'Create your account',
     fullName: 'Full Name',
     phoneNumber: 'Phone Number',
@@ -94,6 +115,16 @@ export const translations: Record<Language, Record<TranslationKey, string>> = {
     memberSince: 'Member Since',
   },
   sw: {
+    appTagline: 'Safari yako, bei yako',
+    countryLabel: 'Nchi',
+    languageLabel: 'Lugha',
+    selectCountry: 'Chagua nchi',
+    selectLanguage: 'Chagua lugha',
+    iAmA: 'Mimi ni...',
+    iGiveRidesShort: 'Natoa safari',
+    iNeedRidesShort: 'Nahitaji safari',
+    selectCountryTitle: 'Chagua Nchi',
+    selectLanguageTitle: 'Chagua Lugha',
     createAccount: 'Fungua akaunti yako',
     fullName: 'Jina kamili',
     phoneNumber: 'Nambari ya simu',
@@ -139,6 +170,16 @@ export const translations: Record<Language, Record<TranslationKey, string>> = {
     memberSince: 'Mwanachama Tangu',
   },
   rw: {
+    appTagline: 'Urugendo rwawe, igiciro cyawe',
+    countryLabel: 'Igihugu',
+    languageLabel: 'Ururimi',
+    selectCountry: 'Hitamo igihugu',
+    selectLanguage: 'Hitamo ururimi',
+    iAmA: 'Ndi...',
+    iGiveRidesShort: 'Ntwara abantu',
+    iNeedRidesShort: 'Nkenera gutwara',
+    selectCountryTitle: 'Hitamo Igihugu',
+    selectLanguageTitle: 'Hitamo Ururimi',
     createAccount: 'Fungura konti yawe',
     fullName: 'Amazina yose',
     phoneNumber: 'Numero ya telefoni',
@@ -184,6 +225,16 @@ export const translations: Record<Language, Record<TranslationKey, string>> = {
     memberSince: 'Umunyamuryango Kuva',
   },
   am: {
+    appTagline: 'ጉዞዎ፣ ዋጋዎ',
+    countryLabel: 'ሀገር',
+    languageLabel: 'ቋንቋ',
+    selectCountry: 'ሀገር ይምረጡ',
+    selectLanguage: 'ቋንቋ ይምረጡ',
+    iAmA: 'እኔ ነኝ...',
+    iGiveRidesShort: 'ጉዞ እሰጣለሁ',
+    iNeedRidesShort: 'ጉዞ እፈልጋለሁ',
+    selectCountryTitle: 'ሀገር ይምረጡ',
+    selectLanguageTitle: 'ቋንቋ ይምረጡ',
     createAccount: 'መለያ ይፍጠሩ',
     fullName: 'ሙሉ ስም',
     phoneNumber: 'ስልክ ቁጥር',

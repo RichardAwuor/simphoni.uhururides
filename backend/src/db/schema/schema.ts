@@ -6,8 +6,8 @@ export const userTypeEnum = pgEnum('user_type', ['driver', 'rider']);
 export const countryEnum = pgEnum('country', ['kenya', 'tanzania', 'uganda']);
 export const languageEnum = pgEnum('language', ['english', 'swahili', 'luganda']);
 export const carMakeEnum = pgEnum('car_make', ['Toyota', 'Nissan', 'Ford', 'Mercedes', 'Volkswagen', 'Others']);
-export const currencyEnum = pgEnum('currency', ['KES', 'TZS', 'UGX']);
-export const rideStatusEnum = pgEnum('ride_status', ['pending', 'bargaining', 'accepted', 'cancelled', 'completed']);
+export const currencyEnum = pgEnum('currency', ['KES', 'TZS', 'UGX', 'USD']);
+export const rideStatusEnum = pgEnum('ride_status', ['pending', 'bargaining', 'accepted', 'rejected', 'cancelled', 'completed']);
 export const bargainStatusEnum = pgEnum('bargain_status', ['pending', 'accepted', 'rejected']);
 
 // Profiles table
@@ -41,16 +41,36 @@ export const driver_details = pgTable('driver_details', {
 export const ride_requests = pgTable('ride_requests', {
   id: text('id').primaryKey(),
   rider_id: text('rider_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
+  driver_id: text('driver_id').references(() => user.id, { onDelete: 'set null' }),
   pickup_location: text('pickup_location').notNull(),
   pickup_lat: real('pickup_lat'),
   pickup_lng: real('pickup_lng'),
   destination: text('destination').notNull(),
+  destination_lat: real('destination_lat'),
+  destination_lng: real('destination_lng'),
+  distance_km: real('distance_km'),
   price_offer: real('price_offer').notNull(),
   currency: currencyEnum('currency').notNull(),
+  bargain_price: real('bargain_price'),
+  bargain_percent: integer('bargain_percent'),
   status: rideStatusEnum('status').notNull().default('pending'),
   assigned_driver_id: text('assigned_driver_id').references(() => user.id, { onDelete: 'set null' }),
+  routing_count: integer('routing_count').notNull().default(0),
+  routed_driver_ids: text('routed_driver_ids').notNull().default(''),
+  rider_phone: text('rider_phone'),
   driver_attempt_count: integer('driver_attempt_count').notNull().default(0),
   created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
+// Driver status table
+export const driver_status = pgTable('driver_status', {
+  id: text('id').primaryKey(),
+  driver_id: text('driver_id').notNull().unique().references(() => user.id, { onDelete: 'cascade' }),
+  is_muted: boolean('is_muted').notNull().default(false),
+  is_available: boolean('is_available').notNull().default(true),
+  current_lat: real('current_lat'),
+  current_lng: real('current_lng'),
   updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 });
 

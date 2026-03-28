@@ -4,6 +4,7 @@ import * as authSchema from './db/schema/auth-schema.js';
 import * as profilesRoutes from './routes/profiles.js';
 import * as driverRoutes from './routes/driver.js';
 import * as ridesRoutes from './routes/rides.js';
+import * as rideRequestsRoutes from './routes/ride-requests.js';
 
 // Combine app schema and auth schema
 const schema = { ...appSchema, ...authSchema };
@@ -22,6 +23,7 @@ app.withAuth();
 profilesRoutes.register(app, app.fastify);
 driverRoutes.register(app, app.fastify);
 ridesRoutes.register(app, app.fastify);
+rideRequestsRoutes.register(app, app.fastify);
 
 await app.run();
 app.logger.info('Application running');

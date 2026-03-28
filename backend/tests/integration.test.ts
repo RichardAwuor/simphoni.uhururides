@@ -483,10 +483,14 @@ describe("API Integration Tests", () => {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          pickup_location: "Westlands",
+          vehicle_type: "car",
           pickup_lat: -1.2657,
           pickup_lng: 36.8092,
-          destination: "South B",
+          pickup_address: "Westlands",
+          destination_address: "South B",
+          destination_lat: -1.2920,
+          destination_lng: 36.7800,
+          distance_km: 5.2,
           price_offer: 750,
           currency: "KES",
         }),
@@ -494,7 +498,7 @@ describe("API Integration Tests", () => {
       await expectStatus(res, 201);
       const data = await res.json();
       rideRequestId = data.id;
-      expect(data.pickup_location).toBe("Westlands");
+      expect(data.pickup_address).toBe("Westlands");
       expect(data.rider_id).toBeDefined();
       expect(data.status).toBeDefined();
     });
@@ -538,10 +542,14 @@ describe("API Integration Tests", () => {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          pickup_location: "Kilimani",
+          vehicle_type: "car",
           pickup_lat: -1.3045,
           pickup_lng: 36.7651,
-          destination: "Langata",
+          pickup_address: "Kilimani",
+          destination_address: "Langata",
+          destination_lat: -1.3300,
+          destination_lng: 36.7500,
+          distance_km: 8.5,
           price_offer: 850,
           currency: "KES",
         }),
@@ -601,10 +609,14 @@ describe("API Integration Tests", () => {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          pickup_location: "Upper Hill",
+          vehicle_type: "car",
           pickup_lat: -1.2952,
           pickup_lng: 36.7764,
-          destination: "Runda",
+          pickup_address: "Upper Hill",
+          destination_address: "Runda",
+          destination_lat: -1.2800,
+          destination_lng: 36.8100,
+          distance_km: 4.0,
           price_offer: 650,
           currency: "KES",
         }),
@@ -658,10 +670,14 @@ describe("API Integration Tests", () => {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          pickup_location: "Muthaiga",
+          vehicle_type: "car",
           pickup_lat: -1.2493,
           pickup_lng: 36.8156,
-          destination: "Gigiri",
+          pickup_address: "Muthaiga",
+          destination_address: "Gigiri",
+          destination_lat: -1.2400,
+          destination_lng: 36.8300,
+          distance_km: 3.5,
           price_offer: 900,
           currency: "KES",
         }),
@@ -689,10 +705,14 @@ describe("API Integration Tests", () => {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          pickup_location: "Rosebank",
+          vehicle_type: "car",
           pickup_lat: -1.2890,
           pickup_lng: 36.8127,
-          destination: "Argwings Kodhek Road",
+          pickup_address: "Rosebank",
+          destination_address: "Argwings Kodhek Road",
+          destination_lat: -1.2950,
+          destination_lng: 36.8200,
+          distance_km: 2.5,
           price_offer: 700,
           currency: "KES",
         }),
@@ -716,10 +736,14 @@ describe("API Integration Tests", () => {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          pickup_location: "Lavington",
+          vehicle_type: "car",
           pickup_lat: -1.3139,
           pickup_lng: 36.7869,
-          destination: "Hurlingham",
+          pickup_address: "Lavington",
+          destination_address: "Hurlingham",
+          destination_lat: -1.3200,
+          destination_lng: 36.8000,
+          distance_km: 6.0,
           price_offer: 800,
           currency: "KES",
         }),
@@ -750,10 +774,14 @@ describe("API Integration Tests", () => {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          pickup_location: "Makadara",
+          vehicle_type: "car",
           pickup_lat: -1.3031,
           pickup_lng: 36.8633,
-          destination: "Imara Daima",
+          pickup_address: "Makadara",
+          destination_address: "Imara Daima",
+          destination_lat: -1.3100,
+          destination_lng: 36.8700,
+          distance_km: 7.0,
           price_offer: 650,
           currency: "KES",
         }),
@@ -782,10 +810,14 @@ describe("API Integration Tests", () => {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          pickup_location: "Parklands",
+          vehicle_type: "car",
           pickup_lat: -1.2641,
           pickup_lng: 36.8298,
-          destination: "Spring Valley",
+          pickup_address: "Parklands",
+          destination_address: "Spring Valley",
+          destination_lat: -1.2750,
+          destination_lng: 36.8450,
+          distance_km: 5.5,
           price_offer: 750,
           currency: "KES",
         }),
@@ -795,7 +827,7 @@ describe("API Integration Tests", () => {
       rideRequestId = data.id;
     });
 
-    test("Cancel ride request", async () => {
+    test("Cancel ride request via POST", async () => {
       const res = await authenticatedApi(`/api/ride-requests/${rideRequestId}/cancel`, riderToken, {
         method: "POST",
       });
@@ -809,15 +841,73 @@ describe("API Integration Tests", () => {
       await expectStatus(res, 404);
     });
 
+    test("Create ride request for DELETE test", async () => {
+      const res = await authenticatedApi("/api/ride-requests", riderToken, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          vehicle_type: "tuktuk",
+          pickup_lat: -1.2800,
+          pickup_lng: 36.8150,
+          pickup_address: "Karen",
+          destination_address: "Nairobi Hospital",
+          destination_lat: -1.2879,
+          destination_lng: 36.8066,
+          distance_km: 4.2,
+          price_offer: 500,
+          currency: "KES",
+        }),
+      });
+      await expectStatus(res, 201);
+      const data = await res.json();
+      rideRequestId = data.id;
+    });
+
+    test("Delete ride request via DELETE method", async () => {
+      const res = await authenticatedApi(`/api/ride-requests/${rideRequestId}`, riderToken, {
+        method: "DELETE",
+      });
+      await expectStatus(res, 200);
+      const data = await res.json();
+      expect(data.success).toBe(true);
+    });
+
+    test("Delete nonexistent request should return 404", async () => {
+      const res = await authenticatedApi("/api/ride-requests/00000000-0000-0000-0000-000000000000", riderToken, {
+        method: "DELETE",
+      });
+      await expectStatus(res, 404);
+    });
+
+    test("Get rider's most recent active ride request", async () => {
+      const res = await authenticatedApi("/api/ride-requests/my", riderToken);
+      await expectStatus(res, 200, 404);
+      // 200 if there's an active request, 404 if not
+      if (res.status === 200) {
+        const data = await res.json();
+        expect(data.id).toBeDefined();
+        expect(data.status).toBeDefined();
+      }
+    });
+
+    test("Get rider's active request without auth should return 401", async () => {
+      const res = await api("/api/ride-requests/my");
+      await expectStatus(res, 401);
+    });
+
     test("Create ride request for rider-response test", async () => {
       const res = await authenticatedApi("/api/ride-requests", riderToken, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          pickup_location: "Valley Arcade",
+          vehicle_type: "motorbike",
           pickup_lat: -1.2890,
           pickup_lng: 36.8127,
-          destination: "Two Rivers",
+          pickup_address: "Valley Arcade",
+          destination_address: "Two Rivers",
+          destination_lat: -1.2950,
+          destination_lng: 36.8180,
+          distance_km: 3.0,
           price_offer: 900,
           currency: "KES",
         }),
@@ -857,10 +947,14 @@ describe("API Integration Tests", () => {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          pickup_location: "Nairobi Hospital",
+          vehicle_type: "car",
           pickup_lat: -1.2879,
           pickup_lng: 36.8066,
-          destination: "Westgate",
+          pickup_address: "Nairobi Hospital",
+          destination_address: "Westgate",
+          destination_lat: -1.2950,
+          destination_lng: 36.8100,
+          distance_km: 2.0,
           price_offer: 650,
           currency: "KES",
         }),
@@ -919,8 +1013,8 @@ describe("API Integration Tests", () => {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          pickup_location: "Test Location",
-          // missing: pickup_lat, pickup_lng, destination, price_offer, currency
+          pickup_address: "Test Location",
+          // missing: vehicle_type, pickup_lat, pickup_lng, destination_address, distance_km, price_offer, currency
         }),
       });
       await expectStatus(res, 400);
@@ -931,10 +1025,14 @@ describe("API Integration Tests", () => {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          pickup_location: "Test Location",
+          vehicle_type: "car",
           pickup_lat: -1.2921,
           pickup_lng: 36.8219,
-          destination: "Test Destination",
+          pickup_address: "Test Location",
+          destination_address: "Test Destination",
+          destination_lat: -1.2800,
+          destination_lng: 36.8100,
+          distance_km: 5.0,
           price_offer: 500,
           currency: "INR", // Not in enum: KES, TZS, UGX, USD
         }),
@@ -952,10 +1050,12 @@ describe("API Integration Tests", () => {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          pickup_location: "Test",
+          vehicle_type: "car",
           pickup_lat: -1.2921,
           pickup_lng: 36.8219,
-          destination: "Test Dest",
+          pickup_address: "Test",
+          destination_address: "Test Dest",
+          distance_km: 5.0,
           price_offer: 500,
           currency: "KES",
         }),

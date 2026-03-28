@@ -7,8 +7,8 @@ import {
   TouchableOpacity,
   FlatList,
   Platform,
-  Image,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -17,7 +17,7 @@ import { AnimatedPressable } from '@/components/AnimatedPressable';
 import { Car, User, ChevronDown, Check } from 'lucide-react-native';
 import { countryToLanguage } from '@/constants/translations';
 
-const LOGO = require('../assets/images/6ef57fee-eec1-4087-88c1-36b9068d1021.png');
+const LOGO = require('../assets/images/98f09b5e-58e7-47eb-94a3-11af3165b0a3.png');
 
 type UserType = 'driver' | 'rider';
 
@@ -225,7 +225,8 @@ export default function WelcomeScreen() {
         <View style={{ alignItems: 'center', marginBottom: 40 }}>
           <Image
             source={LOGO}
-            style={{ width: 120, height: 120, resizeMode: 'contain', marginBottom: 20 }}
+            style={{ width: 160, height: 160, marginBottom: 20 }}
+            contentFit="contain"
           />
           <Text
             style={{

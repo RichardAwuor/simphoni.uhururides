@@ -14,7 +14,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { COLORS } from '@/constants/colors';
 import { AnimatedPressable } from '@/components/AnimatedPressable';
-import { Car, User, ChevronDown, Check } from 'lucide-react-native';
+import { Car, User, ChevronDown, Check, Globe } from 'lucide-react-native';
 import { countryToLanguage } from '@/constants/translations';
 
 const LOGO = require('../assets/images/98f09b5e-58e7-47eb-94a3-11af3165b0a3.png');
@@ -344,7 +344,7 @@ export default function WelcomeScreen() {
               boxShadow: language ? '0 2px 10px rgba(245,197,24,0.18)' : '0 1px 4px rgba(90,60,0,0.06)',
             }}
           >
-            <Text style={{ fontSize: 20, marginRight: 12 }}>🌐</Text>
+            <Globe size={20} color="#F5C518" style={{ marginRight: 12 }} />
             <Text
               style={{
                 flex: 1,

@@ -347,7 +347,7 @@ function DriverRidesScreen() {
     console.log('[DriverRidesScreen] Mute/Unmute toggle pressed — current muted:', muted);
     setMuteLoading(true);
     try {
-      const data = await apiPost<{ muted: boolean }>('/api/driver/mute', {});
+      const data = await apiPost<{ muted: boolean }>('/api/driver/mute', { muted: !muted });
       const newMuted = data?.muted ?? !muted;
       console.log('[DriverRidesScreen] Mute toggled to:', newMuted);
       setMuted(newMuted);
@@ -497,29 +497,34 @@ export default function RidesScreen() {
     );
   }
 
-  if (profile?.role === 'rider') {
-    return (
-      <>
-        <Stack.Screen
-          options={{
-            title: 'Request a Ride',
-            headerShown: true,
-            headerStyle: { backgroundColor: '#FAF7F0' },
-            headerTitleStyle: {
-              fontSize: 18,
-              fontWeight: '700',
-              color: '#1A1A1A',
-              fontFamily: 'Nunito_700Bold',
-            },
-          }}
-        />
-        <RiderRequestScreen />
-      </>
-    );
+  const userRole = profile?.role || (profile as any)?.user_type || (profile as any)?.user_role;
+  const isDriver = userRole === 'driver';
+
+  console.log('[RidesScreen] role-branch — userRole:', userRole, 'isDriver:', isDriver);
+
+  if (isDriver) {
+    return <DriverRidesScreen />;
   }
 
-  // driver (or unknown role — default to driver UI)
-  return <DriverRidesScreen />;
+  // rider (or unknown role — default to rider UI)
+  return (
+    <>
+      <Stack.Screen
+        options={{
+          title: 'Request a Ride',
+          headerShown: true,
+          headerStyle: { backgroundColor: '#FAF7F0' },
+          headerTitleStyle: {
+            fontSize: 18,
+            fontWeight: '700',
+            color: '#1A1A1A',
+            fontFamily: 'Nunito_700Bold',
+          },
+        }}
+      />
+      <RiderRequestScreen />
+    </>
+  );
 }
 
 // ─── Styles ───────────────────────────────────────────────────────────────────

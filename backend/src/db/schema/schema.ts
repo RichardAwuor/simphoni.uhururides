@@ -103,3 +103,21 @@ export const ride_history = pgTable('ride_history', {
   distance_km: real('distance_km'),
   completed_at: timestamp('completed_at', { withTimezone: true }).defaultNow().notNull(),
 });
+
+// Rides table
+export const rides = pgTable('rides', {
+  id: text('id').primaryKey(),
+  rider_id: text('rider_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
+  driver_id: text('driver_id').references(() => user.id, { onDelete: 'set null' }),
+  pickup_location: text('pickup_location').notNull(),
+  dropoff_location: text('dropoff_location').notNull(),
+  pickup_lat: real('pickup_lat'),
+  pickup_lng: real('pickup_lng'),
+  dropoff_lat: real('dropoff_lat'),
+  dropoff_lng: real('dropoff_lng'),
+  status: text('status').notNull().default('pending'),
+  vehicle_type: text('vehicle_type'),
+  fare: real('fare'),
+  created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+});

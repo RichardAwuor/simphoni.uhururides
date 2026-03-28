@@ -80,6 +80,19 @@ describe("API Integration Tests", () => {
       expect(data.user_id).toBeDefined();
     });
 
+    test("Update profile with combined endpoint", async () => {
+      const res = await authenticatedApi("/api/profile", authToken, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: "Updated Combined",
+        }),
+      });
+      await expectStatus(res, 200);
+      const data = await res.json();
+      expect(data.id).toBeDefined();
+    });
+
     test("Get profile without auth should return 401", async () => {
       const res = await api("/api/profile");
       await expectStatus(res, 401);
@@ -131,6 +144,11 @@ describe("API Integration Tests", () => {
       });
       await expectStatus(res, 400);
     });
+
+    test("Get driver details without auth should return 401", async () => {
+      const res = await api("/api/driver/details");
+      await expectStatus(res, 401);
+    });
   });
 
   // Driver availability endpoint
@@ -169,6 +187,17 @@ describe("API Integration Tests", () => {
       });
       await expectStatus(res, 400);
     });
+
+    test("Update availability without auth should return 401", async () => {
+      const res = await api("/api/driver/availability", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          is_available: true,
+        }),
+      });
+      await expectStatus(res, 401);
+    });
   });
 
   // Driver dashboard endpoint
@@ -188,6 +217,11 @@ describe("API Integration Tests", () => {
       const data = await res.json();
       expect(data.total_rides).toBeDefined();
     });
+
+    test("Get dashboard without auth should return 401", async () => {
+      const res = await api("/api/driver/dashboard");
+      await expectStatus(res, 401);
+    });
   });
 
   // Ride Statistics endpoint
@@ -196,12 +230,11 @@ describe("API Integration Tests", () => {
       const res = await authenticatedApi("/api/ride-stats", authToken);
       await expectStatus(res, 200);
       const data = await res.json();
-      expect(data.total_rides_as_rider).toBeDefined();
-      expect(data.total_rides_as_driver).toBeDefined();
+      expect(data.total_rides).toBeDefined();
+      expect(data.completed_rides).toBeDefined();
+      expect(data.cancelled_rides).toBeDefined();
       expect(data.total_earnings).toBeDefined();
-      expect(data.total_spent).toBeDefined();
-      expect(data.completed_rides_as_rider).toBeDefined();
-      expect(data.completed_rides_as_driver).toBeDefined();
+      expect(data.rating).toBeDefined();
     });
 
     test("Get ride stats without auth should return 401", async () => {
@@ -219,35 +252,46 @@ describe("API Integration Tests", () => {
       expect(data.requests).toBeDefined();
       expect(Array.isArray(data.requests)).toBe(true);
     });
+
+    test("Get nearby requests without auth should return 401", async () => {
+      const res = await api("/api/driver/nearby-requests");
+      await expectStatus(res, 401);
+    });
   });
 
   // Rides endpoints
   describe("Ride Management", () => {
-    test("Create ride request", async () => {
+    test("Create ride", async () => {
       const res = await authenticatedApi("/api/rides", authToken, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           pickup_location: "Nairobi CBD",
-          destination: "Westlands",
+          dropoff_location: "Westlands",
           pickup_lat: -1.2921,
           pickup_lng: 36.8219,
-          price_offer: 500,
-          currency: "KES",
+          dropoff_lat: -1.2657,
+          dropoff_lng: 36.8092,
+          vehicle_type: "sedan",
+          fare: 500,
         }),
       });
       await expectStatus(res, 201);
       const data = await res.json();
       rideId = data.id;
       expect(data.pickup_location).toBe("Nairobi CBD");
+      expect(data.dropoff_location).toBe("Westlands");
       expect(data.status).toBeDefined();
+      expect(data.rider_id).toBeDefined();
     });
 
-    test("Get ride request by ID", async () => {
+    test("Get ride by ID", async () => {
       const res = await authenticatedApi(`/api/rides/${rideId}`, authToken);
       await expectStatus(res, 200);
       const data = await res.json();
       expect(data.id).toBe(rideId);
+      expect(data.pickup_location).toBeDefined();
+      expect(data.dropoff_location).toBeDefined();
     });
 
     test("Get nonexistent ride should return 404", async () => {
@@ -255,27 +299,18 @@ describe("API Integration Tests", () => {
       await expectStatus(res, 404);
     });
 
-    test("Get my ride requests", async () => {
-      const res = await authenticatedApi("/api/rides/my-requests", authToken);
+    test("Get my rides", async () => {
+      const res = await authenticatedApi("/api/rides/my", authToken);
       await expectStatus(res, 200);
       const data = await res.json();
-      expect(data.requests).toBeDefined();
-      expect(Array.isArray(data.requests)).toBe(true);
+      expect(Array.isArray(data)).toBe(true);
     });
 
-    test("Get ride history", async () => {
-      const res = await authenticatedApi("/api/rides/history", authToken);
+    test("Get available rides", async () => {
+      const res = await authenticatedApi("/api/rides/available", authToken);
       await expectStatus(res, 200);
       const data = await res.json();
-      expect(data.history).toBeDefined();
-      expect(Array.isArray(data.history)).toBe(true);
-    });
-
-    test("Get ride history with date filter", async () => {
-      const res = await authenticatedApi("/api/rides/history?date=2026-03-27", authToken);
-      await expectStatus(res, 200);
-      const data = await res.json();
-      expect(data.history).toBeDefined();
+      expect(Array.isArray(data)).toBe(true);
     });
 
     test("Create ride with missing required fields should fail", async () => {
@@ -284,22 +319,52 @@ describe("API Integration Tests", () => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           pickup_location: "Nairobi CBD",
-          // missing: destination, price_offer, currency
+          // missing: dropoff_location
         }),
       });
       await expectStatus(res, 400);
+    });
+
+    test("Create ride without auth should return 401", async () => {
+      const res = await api("/api/rides", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          pickup_location: "Test",
+          dropoff_location: "Test",
+        }),
+      });
+      await expectStatus(res, 401);
     });
   });
 
   // Ride actions
   describe("Ride Actions", () => {
-    test("Accept ride request", async () => {
-      const res = await authenticatedApi(`/api/rides/${rideId}/accept`, authToken, {
+    let testRideId: string;
+
+    test("Create test ride for accept", async () => {
+      const res = await authenticatedApi("/api/rides", authToken, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          pickup_location: "Karen",
+          dropoff_location: "Kilimani",
+          fare: 800,
+        }),
+      });
+      await expectStatus(res, 201);
+      const data = await res.json();
+      testRideId = data.id;
+    });
+
+    test("Accept ride", async () => {
+      const res = await authenticatedApi(`/api/rides/${testRideId}/accept`, authToken, {
         method: "POST",
       });
       await expectStatus(res, 200);
       const data = await res.json();
-      expect(data.success).toBe(true);
+      expect(data.id).toBeDefined();
+      expect(data.status).toBeDefined();
     });
 
     test("Accept nonexistent ride should return 404", async () => {
@@ -309,226 +374,66 @@ describe("API Integration Tests", () => {
       await expectStatus(res, 404);
     });
 
-    test("Create ride for reject test", async () => {
-      const res = await authenticatedApi("/api/rides", authToken, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          pickup_location: "Karen",
-          destination: "Kilimani",
-          price_offer: 800,
-          currency: "KES",
-        }),
-      });
-      await expectStatus(res, 201);
-      const data = await res.json();
-      rideId = data.id;
-    });
-
-    test("Reject ride request", async () => {
-      const res = await authenticatedApi(`/api/rides/${rideId}/reject`, authToken, {
-        method: "POST",
-      });
-      await expectStatus(res, 200);
-      const data = await res.json();
-      expect(data.success).toBe(true);
-    });
-
-    test("Reject nonexistent ride should return 404", async () => {
-      const res = await authenticatedApi("/api/rides/00000000-0000-0000-0000-000000000000/reject", authToken, {
-        method: "POST",
-      });
-      await expectStatus(res, 404);
-    });
-  });
-
-  // Bargain endpoints
-  describe("Ride Bargaining", () => {
-    test("Create ride for bargain test", async () => {
+    test("Create test ride for complete", async () => {
       const res = await authenticatedApi("/api/rides", authToken, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           pickup_location: "Eastleigh",
-          destination: "Industrial Area",
-          price_offer: 1000,
-          currency: "KES",
+          dropoff_location: "Industrial Area",
+          fare: 1000,
         }),
       });
       await expectStatus(res, 201);
       const data = await res.json();
-      rideId = data.id;
+      testRideId = data.id;
     });
 
-    test("Create bargain for ride", async () => {
-      const res = await authenticatedApi(`/api/rides/${rideId}/bargain`, authToken, {
+    test("Complete ride", async () => {
+      const res = await authenticatedApi(`/api/rides/${testRideId}/complete`, authToken, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          bargain_percentage: 10,
-        }),
-      });
-      await expectStatus(res, 201);
-      const data = await res.json();
-      expect(data.bargain_percentage).toBe(10);
-      expect(data.bargain_price).toBeDefined();
-    });
-
-    test("Create bargain with invalid percentage should fail", async () => {
-      const res = await authenticatedApi(`/api/rides/${rideId}/bargain`, authToken, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          bargain_percentage: 15, // Not in enum: 10, 25, 50
-        }),
-      });
-      await expectStatus(res, 400);
-    });
-
-    test("Create bargain with missing percentage should fail", async () => {
-      const res = await authenticatedApi(`/api/rides/${rideId}/bargain`, authToken, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({}),
-      });
-      await expectStatus(res, 400);
-    });
-
-    test("Create bargain for nonexistent ride should return 404", async () => {
-      const res = await authenticatedApi("/api/rides/00000000-0000-0000-0000-000000000000/bargain", authToken, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          bargain_percentage: 25,
-        }),
-      });
-      await expectStatus(res, 404);
-    });
-
-    test("Respond to bargain offer - accept", async () => {
-      const res = await authenticatedApi(`/api/rides/${rideId}/bargain/respond`, authToken, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          accept: true,
-        }),
       });
       await expectStatus(res, 200);
       const data = await res.json();
-      expect(data.success).toBe(true);
-    });
-
-    test("Respond to bargain offer - reject", async () => {
-      const res2 = await authenticatedApi("/api/rides", authToken, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          pickup_location: "Kibera",
-          destination: "Ngara",
-          price_offer: 600,
-          currency: "KES",
-        }),
-      });
-      const ride = await res2.json();
-      const bargainRes = await authenticatedApi(`/api/rides/${ride.id}/bargain`, authToken, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          bargain_percentage: 25,
-        }),
-      });
-      await expectStatus(bargainRes, 201);
-
-      const res = await authenticatedApi(`/api/rides/${ride.id}/bargain/respond`, authToken, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          accept: false,
-        }),
-      });
-      await expectStatus(res, 200);
-    });
-
-    test("Respond to bargain with missing accept should fail", async () => {
-      const res = await authenticatedApi(`/api/rides/${rideId}/bargain/respond`, authToken, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({}),
-      });
-      await expectStatus(res, 400);
-    });
-
-    test("Respond to bargain for nonexistent ride should return 404", async () => {
-      const res = await authenticatedApi("/api/rides/00000000-0000-0000-0000-000000000000/bargain/respond", authToken, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          accept: true,
-        }),
-      });
-      await expectStatus(res, 404);
-    });
-  });
-
-  // Ride completion
-  describe("Ride Completion", () => {
-    test("Create ride for completion test", async () => {
-      const res = await authenticatedApi("/api/rides", authToken, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          pickup_location: "Makadara",
-          destination: "South B",
-          price_offer: 600,
-          currency: "KES",
-        }),
-      });
-      await expectStatus(res, 201);
-      const data = await res.json();
-      rideId = data.id;
-    });
-
-    test("Complete ride with distance", async () => {
-      const res = await authenticatedApi(`/api/rides/${rideId}/complete`, authToken, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          distance_km: 15.5,
-        }),
-      });
-      await expectStatus(res, 200);
-      const data = await res.json();
-      expect(data.success).toBe(true);
-    });
-
-    test("Complete ride without distance", async () => {
-      const res2 = await authenticatedApi("/api/rides", authToken, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          pickup_location: "Uthiru",
-          destination: "Kikuyu",
-          price_offer: 400,
-          currency: "KES",
-        }),
-      });
-      const ride = await res2.json();
-
-      const res = await authenticatedApi(`/api/rides/${ride.id}/complete`, authToken, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({}),
-      });
-      await expectStatus(res, 200);
+      expect(data.id).toBeDefined();
+      expect(data.status).toBeDefined();
     });
 
     test("Complete nonexistent ride should return 404", async () => {
       const res = await authenticatedApi("/api/rides/00000000-0000-0000-0000-000000000000/complete", authToken, {
         method: "POST",
+      });
+      await expectStatus(res, 404);
+    });
+
+    test("Create test ride for cancel", async () => {
+      const res = await authenticatedApi("/api/rides", authToken, {
+        method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          distance_km: 10,
+          pickup_location: "Kibera",
+          dropoff_location: "Ngara",
+          fare: 600,
         }),
+      });
+      await expectStatus(res, 201);
+      const data = await res.json();
+      testRideId = data.id;
+    });
+
+    test("Cancel ride", async () => {
+      const res = await authenticatedApi(`/api/rides/${testRideId}/cancel`, authToken, {
+        method: "POST",
+      });
+      await expectStatus(res, 200);
+      const data = await res.json();
+      expect(data.id).toBeDefined();
+      expect(data.status).toBeDefined();
+    });
+
+    test("Cancel nonexistent ride should return 404", async () => {
+      const res = await authenticatedApi("/api/rides/00000000-0000-0000-0000-000000000000/cancel", authToken, {
+        method: "POST",
       });
       await expectStatus(res, 404);
     });
@@ -573,7 +478,7 @@ describe("API Integration Tests", () => {
       await expectStatus(res, 200);
     });
 
-    test("Create ride request (v2 endpoint)", async () => {
+    test("Create ride request", async () => {
       const res = await authenticatedApi("/api/ride-requests", riderToken, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -982,15 +887,18 @@ describe("API Integration Tests", () => {
       await expectStatus(res, 401);
     });
 
+    test("Get combined profile without auth should return 401", async () => {
+      const res = await api("/api/profile");
+      await expectStatus(res, 401);
+    });
+
     test("Create ride without auth should return 401", async () => {
       const res = await api("/api/rides", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           pickup_location: "Test",
-          destination: "Test",
-          price_offer: 100,
-          currency: "KES",
+          dropoff_location: "Test",
         }),
       });
       await expectStatus(res, 401);
@@ -1019,6 +927,11 @@ describe("API Integration Tests", () => {
 
     test("Get nearby requests without auth should return 401", async () => {
       const res = await api("/api/driver/nearby-requests");
+      await expectStatus(res, 401);
+    });
+
+    test("Get ride stats without auth should return 401", async () => {
+      const res = await api("/api/ride-stats");
       await expectStatus(res, 401);
     });
   });

@@ -48,11 +48,14 @@ export const driver_details = pgTable('driver_details', {
 export const ride_requests = pgTable('ride_requests', {
   id: text('id').primaryKey(),
   rider_id: text('rider_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
+  rider_name: text('rider_name'),
   driver_id: text('driver_id').references(() => user.id, { onDelete: 'set null' }),
   pickup_location: text('pickup_location').notNull(),
+  pickup_address: text('pickup_address'),
   pickup_lat: real('pickup_lat'),
   pickup_lng: real('pickup_lng'),
   destination: text('destination').notNull(),
+  destination_address: text('destination_address'),
   destination_lat: real('destination_lat'),
   destination_lng: real('destination_lng'),
   distance_km: real('distance_km'),
@@ -60,14 +63,26 @@ export const ride_requests = pgTable('ride_requests', {
   currency: currencyEnum('currency').notNull(),
   bargain_price: real('bargain_price'),
   bargain_percent: integer('bargain_percent'),
+  bargain_multiplier: real('bargain_multiplier'),
   status: rideStatusEnum('status').notNull().default('pending'),
   assigned_driver_id: text('assigned_driver_id').references(() => user.id, { onDelete: 'set null' }),
+  current_driver_id: text('current_driver_id').references(() => user.id, { onDelete: 'set null' }),
   routing_count: integer('routing_count').notNull().default(0),
   routed_driver_ids: text('routed_driver_ids').notNull().default(''),
   rider_phone: text('rider_phone'),
   driver_attempt_count: integer('driver_attempt_count').notNull().default(0),
   created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
+// Driver ride actions table
+export const driver_ride_actions = pgTable('driver_ride_actions', {
+  id: text('id').primaryKey(),
+  ride_request_id: text('ride_request_id').notNull().references(() => ride_requests.id, { onDelete: 'cascade' }),
+  driver_id: text('driver_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
+  action: text('action').notNull(),
+  bargain_multiplier: real('bargain_multiplier'),
+  created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 });
 
 // Driver status table

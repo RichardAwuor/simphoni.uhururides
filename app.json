@@ -4,10 +4,10 @@
     "slug": "uhuru-east-africa-is",
     "version": "1.0.12",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/images/6bc9bc0b-75d3-4a5a-b53b-0fd85b15b9ab.png",
     "userInterfaceStyle": "automatic",
     "splash": {
-      "image": "./assets/images/app-icon-xst.png",
+      "image": "./assets/images/6bc9bc0b-75d3-4a5a-b53b-0fd85b15b9ab.png",
       "resizeMode": "contain",
       "backgroundColor": "#F5C518"
     },
@@ -20,7 +20,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/6b949fc6-e5e5-419b-b8fb-2677c7307c8a.png",
+        "foregroundImage": "./assets/images/6bc9bc0b-75d3-4a5a-b53b-0fd85b15b9ab.png",
         "backgroundColor": "#F5C518"
       },
       "package": "com.uhururides.app",

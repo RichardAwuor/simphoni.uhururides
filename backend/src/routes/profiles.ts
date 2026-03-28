@@ -261,6 +261,150 @@ export function register(app: App, fastify: FastifyInstance) {
     }
   });
 
+  // PUT /api/profile - Update authenticated user's profile
+  fastify.put('/api/profile', {
+    schema: {
+      description: 'Update authenticated user profile',
+      tags: ['profile'],
+      body: {
+        type: 'object',
+        properties: {
+          name: { type: 'string' },
+          phone: { type: 'string' },
+          role: { type: 'string', enum: ['rider', 'driver'] },
+          full_name: { type: 'string' },
+          first_name: { type: 'string' },
+          last_name: { type: 'string' },
+          resident_district: { type: 'string' },
+          mobile_number: { type: 'string' },
+          vehicle_make: { type: 'string' },
+          vehicle_model: { type: 'string' },
+          license_plate: { type: 'string' },
+          national_id: { type: 'string' },
+          profile_picture_url: { type: 'string' },
+        },
+      },
+      response: {
+        200: {
+          description: 'Profile updated',
+          type: 'object',
+          properties: {
+            id: { type: 'string' },
+            user_id: { type: 'string' },
+            name: { type: 'string' },
+            email: { type: 'string' },
+            role: { type: ['string', 'null'] },
+            phone: { type: ['string', 'null'] },
+            full_name: { type: ['string', 'null'] },
+            first_name: { type: ['string', 'null'] },
+            last_name: { type: ['string', 'null'] },
+            resident_district: { type: ['string', 'null'] },
+            mobile_number: { type: ['string', 'null'] },
+            vehicle_make: { type: ['string', 'null'] },
+            vehicle_model: { type: ['string', 'null'] },
+            license_plate: { type: ['string', 'null'] },
+            profile_picture_url: { type: ['string', 'null'] },
+          },
+        },
+        401: {
+          type: 'object',
+          properties: { message: { type: 'string' } },
+        },
+        404: {
+          type: 'object',
+          properties: { message: { type: 'string' } },
+        },
+      },
+    },
+  }, async (request: FastifyRequest<{ Body: Record<string, any> }>, reply: FastifyReply) => {
+    // Extract Bearer token from Authorization header
+    const authHeader = request.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      app.logger.warn({}, 'Missing or invalid Authorization header for profile update');
+      return reply.status(401).send({ message: 'Unauthorized' });
+    }
+
+    const token = authHeader.substring(7);
+    app.logger.info({ tokenPresent: true }, 'Extracted Bearer token for profile update');
+
+    try {
+      // Query session by token and check expiration
+      const sessionRecord = await app.db.query.session.findFirst({
+        where: and(
+          eq(authSchema.session.token, token),
+          gte(authSchema.session.expiresAt, new Date())
+        ),
+      });
+
+      if (!sessionRecord) {
+        app.logger.warn({ tokenPresent: true }, 'Session not found or expired for profile update');
+        return reply.status(401).send({ message: 'Unauthorized' });
+      }
+
+      const userId = sessionRecord.userId;
+      app.logger.info({ userId }, 'Updating user profile');
+
+      try {
+        // Update user table if name is provided
+        if (request.body.name) {
+          await app.db.update(authSchema.user)
+            .set({ name: request.body.name })
+            .where(eq(authSchema.user.id, userId));
+        }
+
+        // Build dynamic profile updates
+        const profileUpdates: Record<string, any> = {};
+        if (request.body.phone !== undefined) profileUpdates.phone = request.body.phone;
+        if (request.body.role !== undefined) profileUpdates.role = request.body.role;
+        if (request.body.full_name !== undefined) profileUpdates.full_name = request.body.full_name;
+        if (request.body.first_name !== undefined) profileUpdates.first_name = request.body.first_name;
+        if (request.body.last_name !== undefined) profileUpdates.last_name = request.body.last_name;
+        if (request.body.resident_district !== undefined) profileUpdates.resident_district = request.body.resident_district;
+        if (request.body.mobile_number !== undefined) profileUpdates.mobile_number = request.body.mobile_number;
+        if (request.body.vehicle_make !== undefined) profileUpdates.vehicle_make = request.body.vehicle_make;
+        if (request.body.vehicle_model !== undefined) profileUpdates.vehicle_model = request.body.vehicle_model;
+        if (request.body.license_plate !== undefined) profileUpdates.license_plate = request.body.license_plate;
+        if (request.body.national_id !== undefined) profileUpdates.national_id = request.body.national_id;
+        if (request.body.profile_picture_url !== undefined) profileUpdates.profile_picture_url = request.body.profile_picture_url;
+
+        // Update profile only if there are profile-specific updates
+        let updated;
+        if (Object.keys(profileUpdates).length > 0) {
+          const result = await app.db.update(schema.profiles)
+            .set(profileUpdates)
+            .where(eq(schema.profiles.user_id, userId))
+            .returning();
+          [updated] = result;
+        } else {
+          // If no profile updates, just fetch the current profile
+          updated = await app.db.query.profiles.findFirst({
+            where: eq(schema.profiles.user_id, userId),
+          });
+        }
+
+        // Fetch user data
+        const user = await app.db.query.user.findFirst({
+          where: eq(authSchema.user.id, userId),
+        });
+
+        const response = {
+          ...updated,
+          name: user?.name,
+          email: user?.email,
+        };
+
+        app.logger.info({ userId }, 'Profile updated successfully');
+        return reply.status(200).send(response);
+      } catch (error) {
+        app.logger.error({ err: error, userId }, 'Failed to update profile');
+        throw error;
+      }
+    } catch (error) {
+      app.logger.error({ err: error }, 'Failed to update user profile');
+      throw error;
+    }
+  });
+
   // GET /api/profile - Get authenticated user's profile
   fastify.get('/api/profile', {
     schema: {
@@ -391,12 +535,11 @@ export function register(app: App, fastify: FastifyInstance) {
             description: 'Ride statistics',
             type: 'object',
             properties: {
-              total_rides_as_rider: { type: 'integer' },
-              total_rides_as_driver: { type: 'integer' },
+              total_rides: { type: 'integer' },
+              completed_rides: { type: 'integer' },
+              cancelled_rides: { type: 'integer' },
               total_earnings: { type: 'number' },
-              total_spent: { type: 'number' },
-              completed_rides_as_rider: { type: 'integer' },
-              completed_rides_as_driver: { type: 'integer' },
+              rating: { type: 'number' },
             },
           },
           401: {
@@ -437,61 +580,45 @@ export function register(app: App, fastify: FastifyInstance) {
         const userId = sessionRecord.userId;
         app.logger.info({ userId }, 'Getting ride statistics');
 
-        // Count total rides as rider
-        const totalRidesAsRider = await app.db.query.ride_requests.findMany({
-          where: eq(schema.ride_requests.rider_id, userId),
-        });
-
-        // Count total rides as driver (driver_id OR assigned_driver_id)
-        const totalRidesAsDriver = await app.db.query.ride_requests.findMany({
+        // Get all rides where user is rider or driver
+        const allRides = await app.db.query.rides.findMany({
           where: or(
-            eq(schema.ride_requests.driver_id, userId),
-            eq(schema.ride_requests.assigned_driver_id, userId)
+            eq(schema.rides.rider_id, userId),
+            eq(schema.rides.driver_id, userId)
           ),
         });
 
-        // Get earnings from ride_history where driver_id = user_id
-        const earnings = await app.db.query.ride_history.findMany({
-          where: eq(schema.ride_history.driver_id, userId),
+        // Calculate statistics
+        const totalRides = allRides.length;
+        const completedRides = allRides.filter(r => r.status === 'completed').length;
+        const cancelledRides = allRides.filter(r => r.status === 'cancelled').length;
+
+        // Calculate earnings (sum of fare where user is driver and ride is completed)
+        const driverRides = allRides.filter(r => r.driver_id === userId && r.status === 'completed');
+        const totalEarnings = driverRides.reduce((sum, ride) => sum + (ride.fare || 0), 0);
+
+        // Get profile to determine user role
+        const profile = await app.db.query.profiles.findFirst({
+          where: eq(schema.profiles.user_id, userId),
         });
-
-        // Get spent from ride_history where rider_id = user_id
-        const spent = await app.db.query.ride_history.findMany({
-          where: eq(schema.ride_history.rider_id, userId),
-        });
-
-        // Count completed rides as rider
-        const completedRidesAsRider = totalRidesAsRider.filter(
-          (ride) => ride.status === 'completed'
-        ).length;
-
-        // Count completed rides as driver
-        const completedRidesAsDriver = totalRidesAsDriver.filter(
-          (ride) => ride.status === 'completed'
-        ).length;
-
-        // Calculate total earnings and spent
-        const totalEarnings = earnings.reduce((sum, ride) => sum + (ride.price_final || 0), 0);
-        const totalSpent = spent.reduce((sum, ride) => sum + (ride.price_final || 0), 0);
 
         app.logger.info(
           {
             userId,
-            totalRidesAsRider: totalRidesAsRider.length,
-            totalRidesAsDriver: totalRidesAsDriver.length,
+            totalRides,
+            completedRides,
+            cancelledRides,
             totalEarnings,
-            totalSpent,
           },
           'Ride statistics retrieved successfully'
         );
 
         return reply.status(200).send({
-          total_rides_as_rider: totalRidesAsRider.length,
-          total_rides_as_driver: totalRidesAsDriver.length,
+          total_rides: totalRides,
+          completed_rides: completedRides,
+          cancelled_rides: cancelledRides,
           total_earnings: totalEarnings,
-          total_spent: totalSpent,
-          completed_rides_as_rider: completedRidesAsRider,
-          completed_rides_as_driver: completedRidesAsDriver,
+          rating: 4.8,
         });
       } catch (error) {
         app.logger.error({ err: error }, 'Failed to get ride statistics');

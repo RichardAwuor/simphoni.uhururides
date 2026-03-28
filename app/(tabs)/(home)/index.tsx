@@ -14,6 +14,7 @@ import {
 import { Picker } from '@react-native-picker/picker';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useProfile } from '@/contexts/ProfileContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { COLORS } from '@/constants/colors';
 import { AnimatedPressable } from '@/components/AnimatedPressable';
 import { apiGet, apiPost, apiPut } from '@/utils/api';
@@ -825,12 +826,43 @@ function RiderRidesScreen() {
 // ─── Main Export ──────────────────────────────────────────────────────────────
 
 export default function RidesScreen() {
-  const { profile, profileLoading } = useProfile();
+  const { profile, profileLoading, refreshProfile } = useProfile();
+  const { user } = useAuth();
+  const insets = useSafeAreaInsets();
 
-  if (profileLoading || !profile) {
+  console.log('[RidesScreen] render — profileLoading:', profileLoading, 'profile:', profile?.user_type ?? null, 'user:', user?.id ?? null);
+
+  if (profileLoading) {
     return (
       <View style={[styles.container, styles.centered]}>
         <ActivityIndicator size="large" color={COLORS.primary} />
+        <Text style={styles.loadingText}>Loading your profile...</Text>
+      </View>
+    );
+  }
+
+  if (!profile) {
+    // Profile fetch completed but returned null — either API error or profile not set up yet
+    return (
+      <View style={[styles.container, styles.centered, { paddingTop: insets.top }]}>
+        <View style={styles.noProfileCard}>
+          <View style={styles.emptyIcon}>
+            <Car size={36} color={COLORS.primary} />
+          </View>
+          <Text style={styles.noProfileTitle}>Profile Not Set Up</Text>
+          <Text style={styles.noProfileSubtitle}>
+            Please complete your profile to start using rides. Go to the Profile tab to set your role as a rider or driver.
+          </Text>
+          <AnimatedPressable
+            onPress={() => {
+              console.log('[RidesScreen] Retry profile load pressed');
+              refreshProfile();
+            }}
+            style={styles.retryBtn}
+          >
+            <Text style={styles.retryBtnText}>Retry</Text>
+          </AnimatedPressable>
+        </View>
       </View>
     );
   }
@@ -1403,6 +1435,54 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   newRequestBtnText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#1A1A1A',
+    fontFamily: 'Nunito_700Bold',
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 14,
+    color: '#888',
+    fontFamily: 'Nunito_400Regular',
+  },
+  noProfileCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 28,
+    marginHorizontal: 24,
+    alignItems: 'center',
+    gap: 12,
+    shadowColor: '#5A3C00',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 4,
+    borderWidth: 1,
+    borderColor: 'rgba(245,197,24,0.2)',
+  },
+  noProfileTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#1A1A1A',
+    fontFamily: 'Nunito_700Bold',
+    textAlign: 'center',
+  },
+  noProfileSubtitle: {
+    fontSize: 14,
+    color: '#888',
+    fontFamily: 'Nunito_400Regular',
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  retryBtn: {
+    backgroundColor: '#F5A623',
+    borderRadius: 14,
+    paddingVertical: 12,
+    paddingHorizontal: 32,
+    marginTop: 8,
+  },
+  retryBtnText: {
     fontSize: 15,
     fontWeight: '700',
     color: '#1A1A1A',

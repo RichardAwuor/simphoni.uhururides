@@ -38,12 +38,13 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [driverDetails, setDriverDetails] = useState<DriverDetails | null>(null);
-  const [profileLoading, setProfileLoading] = useState(false);
+  const [profileLoading, setProfileLoading] = useState(true);
 
   const refreshProfile = useCallback(async () => {
     if (!user) {
       setProfile(null);
       setDriverDetails(null);
+      setProfileLoading(false);
       return;
     }
     setProfileLoading(true);

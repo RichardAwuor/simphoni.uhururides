@@ -350,7 +350,7 @@ export function register(app: App, fastify: FastifyInstance) {
       if (!session) return;
 
       const userId = session.user.id;
-      const { role } = request.params as any;
+      const { role } = request.query as any;
       app.logger.info({ userId, role }, 'Getting ride requests');
 
       try {
@@ -408,7 +408,7 @@ export function register(app: App, fastify: FastifyInstance) {
         }
 
         app.logger.info({ userId, role, count: requests.length }, 'Retrieved ride requests');
-        return { requests };
+        return reply.send({ requests });
       } catch (error) {
         app.logger.error(
           { err: error, userId, role },
@@ -434,7 +434,32 @@ export function register(app: App, fastify: FastifyInstance) {
           },
         },
         response: {
-          200: { type: 'object' },
+          200: {
+            description: 'Ride request retrieved',
+            type: 'object',
+            properties: {
+              id: { type: 'string' },
+              rider_id: { type: 'string' },
+              driver_id: { type: ['string', 'null'] },
+              pickup_location: { type: 'string' },
+              pickup_lat: { type: 'number' },
+              pickup_lng: { type: 'number' },
+              destination: { type: 'string' },
+              destination_lat: { type: ['number', 'null'] },
+              destination_lng: { type: ['number', 'null'] },
+              distance_km: { type: ['number', 'null'] },
+              price_offer: { type: 'number' },
+              currency: { type: 'string' },
+              bargain_price: { type: ['number', 'null'] },
+              bargain_percent: { type: ['integer', 'null'] },
+              status: { type: 'string' },
+              routing_count: { type: 'integer' },
+              rider_phone: { type: ['string', 'null'] },
+              rider_name: { type: 'string' },
+              created_at: { type: 'string', format: 'date-time' },
+              updated_at: { type: 'string', format: 'date-time' },
+            },
+          },
           404: {
             type: 'object',
             properties: { error: { type: 'string' } },
@@ -1210,7 +1235,7 @@ export function register(app: App, fastify: FastifyInstance) {
         }
 
         app.logger.info({ userId }, 'Retrieved driver status');
-        return {
+        return reply.send({
           id: status.id,
           driver_id: status.driver_id,
           is_muted: status.is_muted,
@@ -1218,7 +1243,7 @@ export function register(app: App, fastify: FastifyInstance) {
           current_lat: status.current_lat,
           current_lng: status.current_lng,
           updated_at: status.updated_at?.toISOString(),
-        };
+        });
       } catch (error) {
         app.logger.error(
           { err: error, userId },
@@ -1323,7 +1348,7 @@ export function register(app: App, fastify: FastifyInstance) {
         }
 
         app.logger.info({ userId }, 'Driver status updated successfully');
-        return {
+        return reply.send({
           id: status.id,
           driver_id: status.driver_id,
           is_muted: status.is_muted,
@@ -1331,7 +1356,7 @@ export function register(app: App, fastify: FastifyInstance) {
           current_lat: status.current_lat,
           current_lng: status.current_lng,
           updated_at: status.updated_at?.toISOString(),
-        };
+        });
       } catch (error) {
         app.logger.error(
           { err: error, userId, body: request.body },

@@ -22,6 +22,13 @@ export const profiles = pgTable('profiles', {
   country: countryEnum('country').notNull(),
   language: languageEnum('language').notNull(),
   profile_picture_url: text('profile_picture_url'),
+  full_name: text('full_name'),
+  phone: text('phone'),
+  role: text('role'),
+  vehicle_make: text('vehicle_make'),
+  vehicle_model: text('vehicle_model'),
+  license_plate: text('license_plate'),
+  national_id: text('national_id'),
   created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 });
 

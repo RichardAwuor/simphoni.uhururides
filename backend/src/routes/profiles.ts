@@ -5,20 +5,16 @@ import * as schema from '../db/schema/schema.js';
 import * as authSchema from '../db/schema/auth-schema.js';
 import type { App } from '../index.js';
 
-interface CreateProfileBody {
-  name: string;
-  phone: string;
-  country: 'kenya' | 'tanzania' | 'uganda';
-  language: 'english' | 'swahili' | 'luganda';
-  userType: 'driver' | 'rider';
-}
-
-interface UpdateProfileBody {
+interface UpsertProfileBody {
+  user_type?: 'driver' | 'rider';
   first_name?: string;
   last_name?: string;
-  resident_district?: string;
   mobile_number?: string;
+  country?: 'kenya' | 'tanzania' | 'uganda';
+  language?: 'english' | 'swahili' | 'luganda';
+  full_name?: string;
   phone?: string;
+  role?: 'driver' | 'rider';
   profile_picture_url?: string;
 }
 
@@ -29,6 +25,16 @@ function normalizeRole(roleValue: string | null | undefined): 'driver' | 'rider'
   if (normalized === 'driver') return 'driver';
   if (normalized === 'rider') return 'rider';
   return null;
+}
+
+// Helper function to normalize language code to enum value
+function normalizeLanguage(lang: string | undefined): 'english' | 'swahili' | 'luganda' {
+  if (!lang) return 'english';
+  const normalized = lang.toLowerCase();
+  if (normalized === 'en' || normalized === 'english') return 'english';
+  if (normalized === 'sw' || normalized === 'swahili') return 'swahili';
+  if (normalized === 'lg' || normalized === 'luganda') return 'luganda';
+  return 'english';
 }
 
 export function register(app: App, fastify: FastifyInstance) {
@@ -46,23 +52,25 @@ export function register(app: App, fastify: FastifyInstance) {
           properties: {
             id: { type: 'string' },
             user_id: { type: 'string' },
-            user_type: { type: 'string', enum: ['driver', 'rider'] },
-            role: { type: ['string', 'null'] },
-            first_name: { type: 'string' },
-            last_name: { type: 'string' },
-            resident_district: { type: 'string' },
+            email: { type: 'string' },
+            full_name: { type: ['string', 'null'] },
+            first_name: { type: ['string', 'null'] },
+            last_name: { type: ['string', 'null'] },
             phone: { type: ['string', 'null'] },
-            country: { type: 'string', enum: ['kenya', 'tanzania', 'uganda'] },
-            language: { type: 'string', enum: ['english', 'swahili', 'luganda'] },
+            mobile_number: { type: ['string', 'null'] },
+            role: { type: ['string', 'null'] },
+            user_type: { type: ['string', 'null'] },
+            country: { type: ['string', 'null'] },
+            language: { type: ['string', 'null'] },
             profile_picture_url: { type: ['string', 'null'] },
-            created_at: { type: 'string', format: 'date-time' },
+            vehicle_make: { type: ['string', 'null'] },
+            vehicle_model: { type: ['string', 'null'] },
+            license_plate: { type: ['string', 'null'] },
+            national_id: { type: ['string', 'null'] },
+            created_at: { type: ['string', 'null'], format: 'date-time' },
           },
         },
         401: {
-          type: 'object',
-          properties: { error: { type: 'string' } },
-        },
-        404: {
           type: 'object',
           properties: { error: { type: 'string' } },
         },
@@ -74,26 +82,74 @@ export function register(app: App, fastify: FastifyInstance) {
 
     app.logger.info({ userId: session.user.id }, 'Fetching user profile');
 
+    // Fetch user record for email
+    const userRecord = await app.db.query.user.findFirst({
+      where: eq(authSchema.user.id, session.user.id),
+    });
+
+    if (!userRecord) {
+      app.logger.warn({ userId: session.user.id }, 'User not found');
+      return reply.status(401).send({ error: 'Unauthorized' });
+    }
+
+    // Fetch profile
     const profile = await app.db.query.profiles.findFirst({
       where: eq(schema.profiles.user_id, session.user.id),
     });
 
+    // If no profile exists, return partial response with user data
     if (!profile) {
-      app.logger.info({ userId: session.user.id }, 'Profile not found');
-      return reply.status(404).send({ error: 'Profile not found' });
+      app.logger.info({ userId: session.user.id }, 'Profile not found, returning user data');
+      return reply.send({
+        user_id: session.user.id,
+        email: userRecord.email || '',
+        full_name: null,
+        first_name: null,
+        last_name: null,
+        phone: null,
+        mobile_number: null,
+        role: null,
+        user_type: null,
+        country: null,
+        language: null,
+        profile_picture_url: userRecord.image || null,
+        vehicle_make: null,
+        vehicle_model: null,
+        license_plate: null,
+        national_id: null,
+        created_at: null,
+      });
     }
 
-    // Compute normalized role: check role column first, fall back to user_type
+    // Compute COALESCE values for response
+    const fullName = profile.full_name || (profile.first_name && profile.last_name
+      ? `${profile.first_name} ${profile.last_name}`.trim()
+      : null);
+    const phoneNumber = profile.phone || profile.mobile_number || '';
     const normalizedRole = profile.role
       ? normalizeRole(profile.role)
       : normalizeRole(profile.user_type);
 
     app.logger.info({ userId: session.user.id, profileId: profile.id }, 'Profile retrieved successfully');
-    // Return response with normalized role and phone field using COALESCE logic
     return reply.send({
-      ...profile,
+      id: profile.id,
+      user_id: profile.user_id,
+      email: userRecord.email || '',
+      full_name: fullName,
+      first_name: profile.first_name || null,
+      last_name: profile.last_name || null,
+      phone: phoneNumber || null,
+      mobile_number: phoneNumber || null,
       role: normalizedRole,
-      phone: profile.phone || profile.mobile_number,
+      user_type: profile.user_type,
+      country: profile.country || null,
+      language: profile.language || null,
+      profile_picture_url: profile.profile_picture_url || null,
+      vehicle_make: profile.vehicle_make || null,
+      vehicle_model: profile.vehicle_model || null,
+      license_plate: profile.license_plate || null,
+      national_id: profile.national_id || null,
+      created_at: profile.created_at,
     });
   });
 
@@ -104,13 +160,16 @@ export function register(app: App, fastify: FastifyInstance) {
       tags: ['profiles'],
       body: {
         type: 'object',
-        required: ['name', 'phone', 'country', 'language', 'userType'],
         properties: {
-          name: { type: 'string' },
-          phone: { type: 'string' },
+          user_type: { type: 'string', enum: ['driver', 'rider'] },
+          first_name: { type: 'string' },
+          last_name: { type: 'string' },
+          mobile_number: { type: 'string' },
           country: { type: 'string', enum: ['kenya', 'tanzania', 'uganda'] },
           language: { type: 'string', enum: ['english', 'swahili', 'luganda'] },
-          userType: { type: 'string', enum: ['driver', 'rider'] },
+          full_name: { type: 'string' },
+          phone: { type: 'string' },
+          role: { type: 'string', enum: ['driver', 'rider'] },
         },
       },
       response: {
@@ -122,14 +181,19 @@ export function register(app: App, fastify: FastifyInstance) {
             user_id: { type: 'string' },
             user_type: { type: 'string' },
             role: { type: ['string', 'null'] },
-            first_name: { type: 'string' },
-            last_name: { type: 'string' },
-            resident_district: { type: 'string' },
+            email: { type: 'string' },
+            full_name: { type: ['string', 'null'] },
+            first_name: { type: ['string', 'null'] },
+            last_name: { type: ['string', 'null'] },
             phone: { type: ['string', 'null'] },
             mobile_number: { type: ['string', 'null'] },
-            country: { type: 'string' },
-            language: { type: 'string' },
+            country: { type: ['string', 'null'] },
+            language: { type: ['string', 'null'] },
             profile_picture_url: { type: ['string', 'null'] },
+            vehicle_make: { type: ['string', 'null'] },
+            vehicle_model: { type: ['string', 'null'] },
+            license_plate: { type: ['string', 'null'] },
+            national_id: { type: ['string', 'null'] },
             created_at: { type: 'string', format: 'date-time' },
           },
         },
@@ -140,41 +204,83 @@ export function register(app: App, fastify: FastifyInstance) {
       },
     },
   }, async (
-    request: FastifyRequest<{ Body: CreateProfileBody }>,
+    request: FastifyRequest<{ Body: UpsertProfileBody }>,
     reply: FastifyReply,
   ) => {
     const session = await requireAuth(request, reply);
     if (!session) return;
 
-    const { name, phone, country, language, userType } = request.body;
+    const {
+      user_type,
+      first_name,
+      last_name,
+      mobile_number,
+      country,
+      language,
+      full_name,
+      phone,
+      role,
+    } = request.body;
 
     app.logger.info(
-      { userId: session.user.id, userType },
+      { userId: session.user.id, user_type, role },
       'Upserting profile',
     );
 
     try {
-      const nameParts = name.trim().split(/\s+/);
-      const firstName = nameParts[0];
-      const lastName = nameParts.slice(1).join(' ');
+      // Determine phone number (use mobile_number if provided, else phone)
+      const phoneNumber = mobile_number || phone;
+
+      // Determine full name and first/last names
+      let firstName = first_name;
+      let lastName = last_name;
+      let fullName = full_name;
+
+      if (first_name || last_name) {
+        firstName = first_name || '';
+        lastName = last_name || '';
+        fullName = `${firstName} ${lastName}`.trim();
+      } else if (full_name) {
+        const nameParts = full_name.trim().split(/\s+/);
+        firstName = nameParts[0];
+        lastName = nameParts.slice(1).join(' ');
+        fullName = full_name;
+      }
+
+      // Determine user_type and role
+      let userType = user_type || 'rider';
+      let roleValue: string | undefined = role;
+
+      if (role) {
+        const normalized = normalizeRole(role);
+        if (normalized) {
+          userType = normalized;
+          roleValue = normalized;
+        }
+      }
 
       const existingProfile = await app.db.query.profiles.findFirst({
         where: eq(schema.profiles.user_id, session.user.id),
       });
 
+      // Build update object with provided values or defaults
+      const profileData = {
+        user_type: userType as 'driver' | 'rider',
+        first_name: firstName || '',
+        last_name: lastName || '',
+        mobile_number: phoneNumber || null,
+        phone: phoneNumber || null,
+        country: country || 'kenya' as const,
+        language: normalizeLanguage(language),
+        resident_district: '',
+        role: roleValue || null,
+        full_name: fullName || null,
+      };
+
       let profile;
       if (existingProfile) {
         const [updated] = await app.db.update(schema.profiles)
-          .set({
-            user_type: userType,
-            first_name: firstName,
-            last_name: lastName,
-            mobile_number: phone,
-            phone: phone,
-            country,
-            language,
-            resident_district: '',
-          })
+          .set(profileData)
           .where(eq(schema.profiles.user_id, session.user.id))
           .returning();
         profile = updated;
@@ -183,18 +289,15 @@ export function register(app: App, fastify: FastifyInstance) {
         const [created] = await app.db.insert(schema.profiles).values({
           id: profileId,
           user_id: session.user.id,
-          user_type: userType,
-          first_name: firstName,
-          last_name: lastName,
-          resident_district: '',
-          country,
-          language,
-          mobile_number: phone,
-          phone: phone,
-          profile_picture_url: null,
+          ...profileData,
         }).returning();
         profile = created;
       }
+
+      // Get user email
+      const userRecord = await app.db.query.user.findFirst({
+        where: eq(authSchema.user.id, session.user.id),
+      });
 
       // Compute normalized role for response
       const normalizedRole = profile.role
@@ -204,6 +307,7 @@ export function register(app: App, fastify: FastifyInstance) {
       app.logger.info({ userId: session.user.id, profileId: profile.id }, 'Profile upserted successfully');
       return reply.send({
         ...profile,
+        email: userRecord?.email || '',
         role: normalizedRole,
         phone: profile.phone || profile.mobile_number,
       });
@@ -221,13 +325,16 @@ export function register(app: App, fastify: FastifyInstance) {
       body: {
         type: 'object',
         properties: {
+          user_type: { type: 'string', enum: ['driver', 'rider'] },
           first_name: { type: 'string' },
           last_name: { type: 'string' },
-          resident_district: { type: 'string' },
           mobile_number: { type: 'string' },
           phone: { type: 'string' },
-          profile_picture_url: { type: 'string' },
+          country: { type: 'string', enum: ['kenya', 'tanzania', 'uganda'] },
+          language: { type: 'string', enum: ['english', 'swahili', 'luganda'] },
+          full_name: { type: 'string' },
           role: { type: 'string', enum: ['driver', 'rider'] },
+          profile_picture_url: { type: 'string' },
         },
       },
       response: {
@@ -239,13 +346,19 @@ export function register(app: App, fastify: FastifyInstance) {
             user_id: { type: 'string' },
             user_type: { type: 'string' },
             role: { type: ['string', 'null'] },
-            first_name: { type: 'string' },
-            last_name: { type: 'string' },
-            resident_district: { type: 'string' },
+            email: { type: 'string' },
+            full_name: { type: ['string', 'null'] },
+            first_name: { type: ['string', 'null'] },
+            last_name: { type: ['string', 'null'] },
             phone: { type: ['string', 'null'] },
-            country: { type: 'string' },
-            language: { type: 'string' },
+            mobile_number: { type: ['string', 'null'] },
+            country: { type: ['string', 'null'] },
+            language: { type: ['string', 'null'] },
             profile_picture_url: { type: ['string', 'null'] },
+            vehicle_make: { type: ['string', 'null'] },
+            vehicle_model: { type: ['string', 'null'] },
+            license_plate: { type: ['string', 'null'] },
+            national_id: { type: ['string', 'null'] },
             created_at: { type: 'string', format: 'date-time' },
           },
         },
@@ -260,7 +373,7 @@ export function register(app: App, fastify: FastifyInstance) {
       },
     },
   }, async (
-    request: FastifyRequest<{ Body: UpdateProfileBody & { role?: string } }>,
+    request: FastifyRequest<{ Body: UpsertProfileBody }>,
     reply: FastifyReply,
   ) => {
     const session = await requireAuth(request, reply);
@@ -279,35 +392,51 @@ export function register(app: App, fastify: FastifyInstance) {
       }
 
       const updates: any = {};
-      if (request.body.first_name) updates.first_name = request.body.first_name;
-      if (request.body.last_name) updates.last_name = request.body.last_name;
-      if (request.body.resident_district) updates.resident_district = request.body.resident_district;
+
+      // Handle name updates - compute full_name from first/last names or use provided full_name
+      if (request.body.first_name !== undefined || request.body.last_name !== undefined) {
+        const fn = request.body.first_name !== undefined ? request.body.first_name : profile.first_name;
+        const ln = request.body.last_name !== undefined ? request.body.last_name : profile.last_name;
+        updates.first_name = fn || '';
+        updates.last_name = ln || '';
+        updates.full_name = `${fn || ''} ${ln || ''}`.trim() || null;
+      } else if (request.body.full_name !== undefined) {
+        updates.full_name = request.body.full_name || null;
+      }
 
       // Handle phone updates - write to both columns
-      if (request.body.phone !== undefined) {
-        updates.phone = request.body.phone || null;
-        updates.mobile_number = request.body.phone || null;
-      }
-      if (request.body.mobile_number !== undefined) {
-        updates.mobile_number = request.body.mobile_number || null;
-        updates.phone = request.body.mobile_number || null;
+      if (request.body.phone !== undefined || request.body.mobile_number !== undefined) {
+        const phoneValue = request.body.mobile_number ?? request.body.phone;
+        updates.phone = phoneValue || null;
+        updates.mobile_number = phoneValue || null;
       }
 
-      // Handle role updates - write to both role and user_type columns
-      if ((request.body as any).role !== undefined) {
-        const normalized = normalizeRole((request.body as any).role);
+      // Handle role/user_type updates - write to both columns
+      if (request.body.role !== undefined) {
+        const normalized = normalizeRole(request.body.role);
         if (normalized) {
           updates.role = normalized;
           updates.user_type = normalized;
         }
+      } else if (request.body.user_type !== undefined) {
+        updates.user_type = request.body.user_type;
+        updates.role = request.body.user_type;
       }
 
+      // Handle other optional fields
+      if (request.body.country !== undefined) updates.country = request.body.country;
+      if (request.body.language !== undefined) updates.language = normalizeLanguage(request.body.language);
       if (request.body.profile_picture_url !== undefined) updates.profile_picture_url = request.body.profile_picture_url || null;
 
       const [updated] = await app.db.update(schema.profiles)
         .set(updates)
         .where(eq(schema.profiles.id, profile.id))
         .returning();
+
+      // Get user email
+      const userRecord = await app.db.query.user.findFirst({
+        where: eq(authSchema.user.id, session.user.id),
+      });
 
       // Compute normalized role for response
       const normalizedRole = updated.role
@@ -317,6 +446,7 @@ export function register(app: App, fastify: FastifyInstance) {
       app.logger.info({ userId: session.user.id, profileId: profile.id }, 'Profile updated successfully');
       return reply.send({
         ...updated,
+        email: userRecord?.email || '',
         role: normalizedRole,
         phone: updated.phone || updated.mobile_number,
       });

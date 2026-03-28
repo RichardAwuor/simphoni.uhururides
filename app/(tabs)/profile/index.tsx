@@ -131,7 +131,7 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
-function AvatarCircle({ name, roleColor }: { name: string; roleColor: string }) {
+function AvatarCircle({ name }: { name: string }) {
   const initials = getInitials(name);
   return (
     <View
@@ -139,7 +139,7 @@ function AvatarCircle({ name, roleColor }: { name: string; roleColor: string }) 
         width: 64,
         height: 64,
         borderRadius: 32,
-        backgroundColor: roleColor,
+        backgroundColor: '#F5C518',
         alignItems: 'center',
         justifyContent: 'center',
       }}
@@ -148,7 +148,7 @@ function AvatarCircle({ name, roleColor }: { name: string; roleColor: string }) 
         style={{
           fontSize: 24,
           fontWeight: '800',
-          color: '#FFFFFF',
+          color: '#1a1a1a',
           fontFamily: 'Nunito_800ExtraBold',
         }}
       >
@@ -158,9 +158,11 @@ function AvatarCircle({ name, roleColor }: { name: string; roleColor: string }) 
   );
 }
 
-function RoleBadge({ role }: { role: 'driver' | 'rider' }) {
+function RoleBadge({ role }: { role?: 'driver' | 'rider' | null }) {
+  if (!role) return null;
   const isDriver = role === 'driver';
-  const bg = isDriver ? '#F5A623' : '#3B82F6';
+  const bg = isDriver ? '#1a1a1a' : '#F5C518';
+  const textColor = isDriver ? '#FFFFFF' : '#1a1a1a';
   const label = isDriver ? 'Driver' : 'Rider';
   return (
     <View
@@ -176,7 +178,7 @@ function RoleBadge({ role }: { role: 'driver' | 'rider' }) {
         style={{
           fontSize: 12,
           fontWeight: '700',
-          color: '#FFFFFF',
+          color: textColor,
           fontFamily: 'Nunito_700Bold',
         }}
       >
@@ -186,14 +188,13 @@ function RoleBadge({ role }: { role: 'driver' | 'rider' }) {
   );
 }
 
-function ProfileHeaderCard({ profile }: { profile: ApiProfile }) {
-  const roleColor = profile.role === 'driver' ? '#F5A623' : '#3B82F6';
-  const phoneDisplay = profile.phone || '—';
-  const emailDisplay = profile.email || '—';
+function ProfileHeaderCard({ profile, authEmail }: { profile: ApiProfile; authEmail?: string }) {
+  const phoneDisplay = profile.phone || null;
+  const emailDisplay = profile.email || authEmail || null;
   return (
     <View style={CARD_STYLE}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
-        <AvatarCircle name={profile.full_name} roleColor={roleColor} />
+        <AvatarCircle name={profile.full_name} />
         <View style={{ flex: 1, gap: 6 }}>
           <Text
             style={{
@@ -222,11 +223,11 @@ function ProfileHeaderCard({ profile }: { profile: ApiProfile }) {
           <Text
             style={{
               fontSize: 14,
-              color: '#1A1A1A',
+              color: phoneDisplay ? '#1A1A1A' : '#AAAAAA',
               fontFamily: 'Nunito_400Regular',
             }}
           >
-            {phoneDisplay}
+            {phoneDisplay ?? 'Not set'}
           </Text>
         </View>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
@@ -234,11 +235,11 @@ function ProfileHeaderCard({ profile }: { profile: ApiProfile }) {
           <Text
             style={{
               fontSize: 14,
-              color: '#1A1A1A',
+              color: emailDisplay ? '#1A1A1A' : '#AAAAAA',
               fontFamily: 'Nunito_400Regular',
             }}
           >
-            {emailDisplay}
+            {emailDisplay ?? 'Not set'}
           </Text>
         </View>
       </View>
@@ -592,7 +593,7 @@ function SignOutButton() {
 
 // ─── Driver Profile ───────────────────────────────────────────────────────────
 
-function DriverProfile({ profile }: { profile: ApiProfile }) {
+function DriverProfile({ profile, authEmail }: { profile: ApiProfile; authEmail?: string }) {
   const insets = useSafeAreaInsets();
 
   const defaultTo = new Date();
@@ -669,7 +670,7 @@ function DriverProfile({ profile }: { profile: ApiProfile }) {
         </Text>
       </View>
 
-      <ProfileHeaderCard profile={profile} />
+      <ProfileHeaderCard profile={profile} authEmail={authEmail} />
       <VehicleDetailsCard profile={profile} />
 
       {/* Ride History */}
@@ -764,7 +765,7 @@ function DriverProfile({ profile }: { profile: ApiProfile }) {
 
 // ─── Rider Profile ────────────────────────────────────────────────────────────
 
-function RiderProfile({ profile }: { profile: ApiProfile }) {
+function RiderProfile({ profile, authEmail }: { profile: ApiProfile; authEmail?: string }) {
   const insets = useSafeAreaInsets();
 
   const defaultTo = new Date();
@@ -834,7 +835,7 @@ function RiderProfile({ profile }: { profile: ApiProfile }) {
         </Text>
       </View>
 
-      <ProfileHeaderCard profile={profile} />
+      <ProfileHeaderCard profile={profile} authEmail={authEmail} />
 
       {/* My Rides */}
       <View style={CARD_STYLE}>
@@ -1005,8 +1006,9 @@ export default function ProfileScreen() {
     );
   }
 
+  const authEmail = user?.email ?? undefined;
   if (profile.role === 'driver') {
-    return <DriverProfile profile={profile} />;
+    return <DriverProfile profile={profile} authEmail={authEmail} />;
   }
-  return <RiderProfile profile={profile} />;
+  return <RiderProfile profile={profile} authEmail={authEmail} />;
 }

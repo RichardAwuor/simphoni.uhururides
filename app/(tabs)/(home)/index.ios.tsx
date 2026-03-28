@@ -18,6 +18,8 @@ import { COLORS } from '@/constants/colors';
 import { AnimatedPressable } from '@/components/AnimatedPressable';
 import { apiGet, apiPost } from '@/utils/api';
 import { MapPin, Flag, Navigation, Phone, BellOff, Bell, Car } from 'lucide-react-native';
+import { useProfile } from '@/contexts/ProfileContext';
+import RiderRequestScreen from '@/components/RiderRequestScreen';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -291,9 +293,9 @@ function RideRequestCard({ request, index, muted, onAccept, onIgnore, onBargainS
   );
 }
 
-// ─── Main Screen ──────────────────────────────────────────────────────────────
+// ─── Driver Screen ────────────────────────────────────────────────────────────
 
-export default function DriverRidesScreen() {
+function DriverRidesScreen() {
   const insets = useSafeAreaInsets();
   const [requests, setRequests] = useState<RideRequest[]>([]);
   const [loading, setLoading] = useState(true);
@@ -303,7 +305,6 @@ export default function DriverRidesScreen() {
   const [acceptedRide, setAcceptedRide] = useState<AcceptedRide | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Fetch mute state on mount
   useEffect(() => {
     const fetchMuteState = async () => {
       console.log('[DriverRidesScreen] Fetching mute state');
@@ -319,7 +320,6 @@ export default function DriverRidesScreen() {
     fetchMuteState();
   }, []);
 
-  // Poll ride requests every 5 seconds
   const fetchRequests = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
     console.log('[DriverRidesScreen] Fetching ride requests');
@@ -431,7 +431,6 @@ export default function DriverRidesScreen() {
         }}
       />
 
-      {/* Muted banner */}
       {muted ? (
         <View style={styles.mutedBanner}>
           <BellOff size={15} color="#92400E" />
@@ -446,7 +445,6 @@ export default function DriverRidesScreen() {
         contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 120 }]}
         showsVerticalScrollIndicator={false}
       >
-        {/* Subtitle */}
         <Text style={styles.subtitle}>Incoming ride requests from riders nearby</Text>
 
         {loading ? (
@@ -481,6 +479,47 @@ export default function DriverRidesScreen() {
       <AcceptModal ride={acceptedRide} onClose={() => setAcceptedRide(null)} />
     </View>
   );
+}
+
+// ─── Root Screen (role-branching) ─────────────────────────────────────────────
+
+export default function RidesScreen() {
+  const { profile, profileLoading } = useProfile();
+
+  if (profileLoading) {
+    return (
+      <View style={styles.container}>
+        <Stack.Screen options={{ title: 'Rides', headerShown: true, headerStyle: { backgroundColor: '#FAF7F0' } }} />
+        <View style={styles.centered}>
+          <ActivityIndicator size="large" color={COLORS.primary} />
+        </View>
+      </View>
+    );
+  }
+
+  if (profile?.role === 'rider') {
+    return (
+      <>
+        <Stack.Screen
+          options={{
+            title: 'Request a Ride',
+            headerShown: true,
+            headerStyle: { backgroundColor: '#FAF7F0' },
+            headerTitleStyle: {
+              fontSize: 18,
+              fontWeight: '700',
+              color: '#1A1A1A',
+              fontFamily: 'Nunito_700Bold',
+            },
+          }}
+        />
+        <RiderRequestScreen />
+      </>
+    );
+  }
+
+  // driver (or unknown role — default to driver UI)
+  return <DriverRidesScreen />;
 }
 
 // ─── Styles ───────────────────────────────────────────────────────────────────

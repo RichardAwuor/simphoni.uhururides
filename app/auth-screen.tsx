@@ -288,7 +288,7 @@ export default function AuthScreen() {
                   textAlign: 'center',
                 }}
               >
-                Uhuru East Africa
+                Uhuru-Rides
               </Text>
               <Text
                 style={{

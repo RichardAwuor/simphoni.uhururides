@@ -9,6 +9,7 @@ import {
   Animated,
   ActivityIndicator,
 } from 'react-native';
+import { Picker } from '@react-native-picker/picker';
 import { StatusBar } from 'expo-status-bar';
 import { Image } from 'expo-image';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -143,6 +144,7 @@ export default function AuthScreen() {
   const [confirmTouched, setConfirmTouched] = useState(false);
 
   // Driver-only fields
+  const [vehicleType, setVehicleType] = useState('');
   const [vehicleMakeModel, setVehicleMakeModel] = useState('');
   const [licensePlate, setLicensePlate] = useState('');
   const [nationalId, setNationalId] = useState('');
@@ -181,6 +183,7 @@ export default function AuthScreen() {
   const confirmBorderColor = emailsMismatch ? COLORS.danger : emailsMatch ? '#22c55e' : COLORS.border;
 
   const driverFieldsFilled = !isDriver || (
+    vehicleType.trim().length > 0 &&
     vehicleMakeModel.trim().length > 0 &&
     licensePlate.trim().length > 0 &&
     nationalId.trim().length > 0
@@ -213,6 +216,7 @@ export default function AuthScreen() {
 
     if (isDriver) {
       const driverPayload = {
+        vehicle_type: vehicleType,
         car_make: vehicleMakeModel.trim(),
         car_registration: licensePlate.trim().toUpperCase(),
         national_id: nationalId.trim(),
@@ -577,6 +581,71 @@ export default function AuthScreen() {
                 >
                   {t('vehicleDetails')}
                 </Text>
+
+                {/* Vehicle Type Picker */}
+                <View style={{ marginBottom: 16 }}>
+                  <Text
+                    style={{
+                      fontSize: 13,
+                      fontWeight: '600',
+                      color: COLORS.textSecondary,
+                      fontFamily: 'Nunito_600SemiBold',
+                      marginBottom: 6,
+                    }}
+                  >
+                    Vehicle Type
+                  </Text>
+                  <View
+                    style={{
+                      backgroundColor: COLORS.surface,
+                      borderRadius: 12,
+                      borderWidth: 1.5,
+                      borderColor: COLORS.border,
+                      height: 52,
+                      justifyContent: 'center',
+                      overflow: 'hidden',
+                    }}
+                  >
+                    <Picker
+                      selectedValue={vehicleType}
+                      onValueChange={(val) => {
+                        console.log('[AuthScreen] Vehicle type selected:', val);
+                        setVehicleType(val);
+                      }}
+                      style={{
+                        color: vehicleType ? COLORS.text : COLORS.textTertiary,
+                        fontFamily: 'Nunito_400Regular',
+                        marginHorizontal: Platform.OS === 'android' ? -4 : 0,
+                      }}
+                      dropdownIconColor={COLORS.textTertiary}
+                    >
+                      <Picker.Item
+                        label="Select vehicle type"
+                        value=""
+                        color={COLORS.textTertiary}
+                        style={{ fontFamily: 'Nunito_400Regular' }}
+                      />
+                      <Picker.Item
+                        label="Car"
+                        value="car"
+                        color={COLORS.text}
+                        style={{ fontFamily: 'Nunito_400Regular' }}
+                      />
+                      <Picker.Item
+                        label="Tuktuk/Bajaj"
+                        value="tuktuk"
+                        color={COLORS.text}
+                        style={{ fontFamily: 'Nunito_400Regular' }}
+                      />
+                      <Picker.Item
+                        label="Motorbike"
+                        value="motorbike"
+                        color={COLORS.text}
+                        style={{ fontFamily: 'Nunito_400Regular' }}
+                      />
+                    </Picker>
+                  </View>
+                </View>
 
                 <InputField
                   label={t('vehicleMake')}

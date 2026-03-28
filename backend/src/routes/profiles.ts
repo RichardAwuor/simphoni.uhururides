@@ -22,6 +22,15 @@ interface UpdateProfileBody {
   profile_picture_url?: string;
 }
 
+// Helper function to normalize role to lowercase 'driver' or 'rider'
+function normalizeRole(roleValue: string | null | undefined): 'driver' | 'rider' | null {
+  if (!roleValue) return null;
+  const normalized = roleValue.toLowerCase();
+  if (normalized === 'driver') return 'driver';
+  if (normalized === 'rider') return 'rider';
+  return null;
+}
+
 export function register(app: App, fastify: FastifyInstance) {
   const requireAuth = app.requireAuth();
 
@@ -38,6 +47,7 @@ export function register(app: App, fastify: FastifyInstance) {
             id: { type: 'string' },
             user_id: { type: 'string' },
             user_type: { type: 'string', enum: ['driver', 'rider'] },
+            role: { type: ['string', 'null'] },
             first_name: { type: 'string' },
             last_name: { type: 'string' },
             resident_district: { type: 'string' },
@@ -73,10 +83,16 @@ export function register(app: App, fastify: FastifyInstance) {
       return reply.status(404).send({ error: 'Profile not found' });
     }
 
+    // Compute normalized role: check role column first, fall back to user_type
+    const normalizedRole = profile.role
+      ? normalizeRole(profile.role)
+      : normalizeRole(profile.user_type);
+
     app.logger.info({ userId: session.user.id, profileId: profile.id }, 'Profile retrieved successfully');
-    // Return response with phone field using COALESCE logic
+    // Return response with normalized role and phone field using COALESCE logic
     return reply.send({
       ...profile,
+      role: normalizedRole,
       phone: profile.phone || profile.mobile_number,
     });
   });
@@ -105,6 +121,7 @@ export function register(app: App, fastify: FastifyInstance) {
             id: { type: 'string' },
             user_id: { type: 'string' },
             user_type: { type: 'string' },
+            role: { type: ['string', 'null'] },
             first_name: { type: 'string' },
             last_name: { type: 'string' },
             resident_district: { type: 'string' },
@@ -179,9 +196,15 @@ export function register(app: App, fastify: FastifyInstance) {
         profile = created;
       }
 
+      // Compute normalized role for response
+      const normalizedRole = profile.role
+        ? normalizeRole(profile.role)
+        : normalizeRole(profile.user_type);
+
       app.logger.info({ userId: session.user.id, profileId: profile.id }, 'Profile upserted successfully');
       return reply.send({
         ...profile,
+        role: normalizedRole,
         phone: profile.phone || profile.mobile_number,
       });
     } catch (error) {
@@ -204,6 +227,7 @@ export function register(app: App, fastify: FastifyInstance) {
           mobile_number: { type: 'string' },
           phone: { type: 'string' },
           profile_picture_url: { type: 'string' },
+          role: { type: 'string', enum: ['driver', 'rider'] },
         },
       },
       response: {
@@ -214,6 +238,7 @@ export function register(app: App, fastify: FastifyInstance) {
             id: { type: 'string' },
             user_id: { type: 'string' },
             user_type: { type: 'string' },
+            role: { type: ['string', 'null'] },
             first_name: { type: 'string' },
             last_name: { type: 'string' },
             resident_district: { type: 'string' },
@@ -235,7 +260,7 @@ export function register(app: App, fastify: FastifyInstance) {
       },
     },
   }, async (
-    request: FastifyRequest<{ Body: UpdateProfileBody }>,
+    request: FastifyRequest<{ Body: UpdateProfileBody & { role?: string } }>,
     reply: FastifyReply,
   ) => {
     const session = await requireAuth(request, reply);
@@ -268,6 +293,15 @@ export function register(app: App, fastify: FastifyInstance) {
         updates.phone = request.body.mobile_number || null;
       }
 
+      // Handle role updates - write to both role and user_type columns
+      if ((request.body as any).role !== undefined) {
+        const normalized = normalizeRole((request.body as any).role);
+        if (normalized) {
+          updates.role = normalized;
+          updates.user_type = normalized;
+        }
+      }
+
       if (request.body.profile_picture_url !== undefined) updates.profile_picture_url = request.body.profile_picture_url || null;
 
       const [updated] = await app.db.update(schema.profiles)
@@ -275,9 +309,15 @@ export function register(app: App, fastify: FastifyInstance) {
         .where(eq(schema.profiles.id, profile.id))
         .returning();
 
+      // Compute normalized role for response
+      const normalizedRole = updated.role
+        ? normalizeRole(updated.role)
+        : normalizeRole(updated.user_type);
+
       app.logger.info({ userId: session.user.id, profileId: profile.id }, 'Profile updated successfully');
       return reply.send({
         ...updated,
+        role: normalizedRole,
         phone: updated.phone || updated.mobile_number,
       });
     } catch (error) {
@@ -316,6 +356,7 @@ export function register(app: App, fastify: FastifyInstance) {
           properties: {
             id: { type: 'string' },
             user_id: { type: 'string' },
+            user_type: { type: 'string' },
             name: { type: 'string' },
             email: { type: 'string' },
             role: { type: ['string', 'null'] },
@@ -390,7 +431,14 @@ export function register(app: App, fastify: FastifyInstance) {
           profileUpdates.phone = request.body.mobile_number;
         }
 
-        if (request.body.role !== undefined) profileUpdates.role = request.body.role;
+        // Handle role updates - write to both role and user_type columns
+        if (request.body.role !== undefined) {
+          const normalized = normalizeRole(request.body.role);
+          if (normalized) {
+            profileUpdates.role = normalized;
+            profileUpdates.user_type = normalized;
+          }
+        }
         if (request.body.full_name !== undefined) profileUpdates.full_name = request.body.full_name;
         if (request.body.first_name !== undefined) profileUpdates.first_name = request.body.first_name;
         if (request.body.last_name !== undefined) profileUpdates.last_name = request.body.last_name;
@@ -421,8 +469,14 @@ export function register(app: App, fastify: FastifyInstance) {
           where: eq(authSchema.user.id, userId),
         });
 
+        // Compute normalized role for response
+        const normalizedRole = updated.role
+          ? normalizeRole(updated.role)
+          : normalizeRole(updated.user_type);
+
         const response = {
           ...updated,
+          role: normalizedRole,
           name: user?.name,
           email: user?.email,
           phone: updated?.phone || updated?.mobile_number,
@@ -550,9 +604,15 @@ export function register(app: App, fastify: FastifyInstance) {
         app.logger.info({ userId, profileId }, 'Profile auto-created successfully');
       }
 
+      // Compute normalized role: check role column first, fall back to user_type
+      const normalizedRole = profile.role
+        ? normalizeRole(profile.role)
+        : normalizeRole(profile.user_type);
+
       app.logger.info({ userId, profileId: profile.id }, 'User profile retrieved successfully');
       return reply.status(200).send({
         ...profile,
+        role: normalizedRole,
         phone: profile.phone || profile.mobile_number,
       });
     } catch (error) {

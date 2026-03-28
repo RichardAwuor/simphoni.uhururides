@@ -1,55 +1,58 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
   ScrollView,
   ActivityIndicator,
-  RefreshControl,
-  Animated,
+  TouchableOpacity,
+  Platform,
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@/contexts/AuthContext';
-import { useProfile } from '@/contexts/ProfileContext';
-import { useTranslation } from '@/hooks/useTranslation';
+import { apiGet } from '@/utils/api';
 import { COLORS } from '@/constants/colors';
 import { AnimatedPressable } from '@/components/AnimatedPressable';
-import { ProfileCard } from '@/components/ProfileCard';
 import { StatCard } from '@/components/StatCard';
-import { apiGet } from '@/utils/api';
-import { LogOut, Car, Calendar } from 'lucide-react-native';
+import { LogOut } from 'lucide-react-native';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-interface DriverDashboard {
-  rides_count: number;
-  total_earnings: number;
-  total_km: number;
-  currency?: string;
+interface ApiProfile {
+  id: string;
+  full_name: string;
+  phone: string;
+  email: string;
+  role: 'rider' | 'driver';
+  vehicle_make: string | null;
+  vehicle_model: string | null;
+  license_plate: string | null;
+  national_id: string | null;
+  created_at: string;
 }
 
-interface RideRequest {
+interface RideItem {
   id: string;
   pickup_location: string;
   destination: string;
+  distance_km: number | null;
   price_offer: number;
+  bargain_price: number | null;
+  final_price: number;
   currency: string;
   status: string;
-  created_at?: string;
+  created_at: string;
+}
+
+interface RideStats {
+  total_rides: number;
+  total_earnings: number;
+  total_distance_km: number;
+  registration_date: string;
+  rides: RideItem[];
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function formatCurrency(amount: number, currency: string): string {
-  const num = Number(amount);
-  return `${String(currency).toUpperCase()} ${num.toLocaleString()}`;
-}
-
-function formatDate(dateStr?: string): string {
-  if (!dateStr) return '—';
-  const d = new Date(dateStr);
-  return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
-}
 
 function toYMD(date: Date): string {
   const y = date.getFullYear();
@@ -58,84 +61,488 @@ function toYMD(date: Date): string {
   return `${y}-${m}-${d}`;
 }
 
-const COUNTRY_CURRENCY: Record<string, string> = {
-  kenya: 'KES',
-  tanzania: 'TZS',
-  uganda: 'UGX',
-};
+function formatDate(dateStr?: string): string {
+  if (!dateStr) return '—';
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return '—';
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+function formatNumber(n: number): string {
+  return Number(n).toLocaleString('en-US');
+}
+
+function getInitials(name: string): string {
+  const parts = String(name || '').trim().split(/\s+/);
+  if (parts.length === 0 || !parts[0]) return '?';
+  if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
+  return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
+}
+
+const CARD_STYLE = {
+  backgroundColor: '#FFFFFF',
+  borderRadius: 12,
+  padding: 16,
+  shadowColor: '#000',
+  shadowOffset: { width: 0, height: 2 },
+  shadowOpacity: 0.08,
+  shadowRadius: 8,
+  elevation: 3,
+  marginBottom: 16,
+} as const;
 
 const STATUS_COLORS: Record<string, string> = {
   pending: COLORS.primary,
   bargaining: '#F97316',
-  accepted: COLORS.success,
-  cancelled: COLORS.danger,
-  completed: '#9E8A3A',
+  accepted: '#22C55E',
+  completed: '#22C55E',
+  cancelled: '#EF4444',
 };
 
+// ─── Sub-components ───────────────────────────────────────────────────────────
+
 function StatusBadge({ status }: { status: string }) {
-  const color = STATUS_COLORS[status] || COLORS.textTertiary;
+  const color = STATUS_COLORS[status.toLowerCase()] || COLORS.textTertiary;
+  const bgColor = `${color}20`;
+  const borderColor = `${color}40`;
   return (
     <View
       style={{
-        backgroundColor: `${color}18`,
+        backgroundColor: bgColor,
         borderRadius: 8,
         paddingHorizontal: 8,
-        paddingVertical: 2,
+        paddingVertical: 3,
         borderWidth: 1,
-        borderColor: `${color}40`,
+        borderColor,
       }}
     >
-      <Text style={{ fontSize: 11, fontWeight: '600', color, fontFamily: 'Nunito_600SemiBold', textTransform: 'capitalize' }}>
+      <Text
+        style={{
+          fontSize: 11,
+          fontWeight: '600',
+          color,
+          fontFamily: 'Nunito_600SemiBold',
+          textTransform: 'capitalize',
+        }}
+      >
         {status}
       </Text>
     </View>
   );
 }
 
-// ─── Driver Profile ───────────────────────────────────────────────────────────
+function AvatarCircle({ name, roleColor }: { name: string; roleColor: string }) {
+  const initials = getInitials(name);
+  return (
+    <View
+      style={{
+        width: 64,
+        height: 64,
+        borderRadius: 32,
+        backgroundColor: roleColor,
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}
+    >
+      <Text
+        style={{
+          fontSize: 24,
+          fontWeight: '800',
+          color: '#FFFFFF',
+          fontFamily: 'Nunito_800ExtraBold',
+        }}
+      >
+        {initials}
+      </Text>
+    </View>
+  );
+}
 
-function DriverProfile() {
-  const { profile, driverDetails } = useProfile();
-  const { t } = useTranslation();
-  const insets = useSafeAreaInsets();
-  const { signOut } = useAuth();
-  const [selectedDate, setSelectedDate] = useState(new Date());
-  const [showPicker, setShowPicker] = useState(false);
-  const [dashboard, setDashboard] = useState<DriverDashboard | null>(null);
-  const [dashLoading, setDashLoading] = useState(false);
-  const [signingOut, setSigningOut] = useState(false);
+function RoleBadge({ role }: { role: 'driver' | 'rider' }) {
+  const isDriver = role === 'driver';
+  const bg = isDriver ? '#F5A623' : '#3B82F6';
+  const label = isDriver ? 'Driver' : 'Rider';
+  return (
+    <View
+      style={{
+        backgroundColor: bg,
+        borderRadius: 20,
+        paddingHorizontal: 10,
+        paddingVertical: 3,
+        alignSelf: 'flex-start',
+      }}
+    >
+      <Text
+        style={{
+          fontSize: 12,
+          fontWeight: '700',
+          color: '#FFFFFF',
+          fontFamily: 'Nunito_700Bold',
+        }}
+      >
+        {label}
+      </Text>
+    </View>
+  );
+}
 
-  const currency = COUNTRY_CURRENCY[profile?.country || 'kenya'];
+function ProfileHeaderCard({ profile }: { profile: ApiProfile }) {
+  const roleColor = profile.role === 'driver' ? '#F5A623' : '#3B82F6';
+  const phoneDisplay = profile.phone || '—';
+  const emailDisplay = profile.email || '—';
+  return (
+    <View style={CARD_STYLE}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
+        <AvatarCircle name={profile.full_name} roleColor={roleColor} />
+        <View style={{ flex: 1, gap: 6 }}>
+          <Text
+            style={{
+              fontSize: 20,
+              fontWeight: '700',
+              color: '#1A1A1A',
+              fontFamily: 'Nunito_700Bold',
+            }}
+          >
+            {profile.full_name || '—'}
+          </Text>
+          <RoleBadge role={profile.role} />
+        </View>
+      </View>
+      <View
+        style={{
+          marginTop: 16,
+          borderTopWidth: 1,
+          borderTopColor: 'rgba(0,0,0,0.06)',
+          paddingTop: 14,
+          gap: 10,
+        }}
+      >
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <Text style={{ fontSize: 15 }}>📞</Text>
+          <Text
+            style={{
+              fontSize: 14,
+              color: '#1A1A1A',
+              fontFamily: 'Nunito_400Regular',
+            }}
+          >
+            {phoneDisplay}
+          </Text>
+        </View>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <Text style={{ fontSize: 15 }}>✉️</Text>
+          <Text
+            style={{
+              fontSize: 14,
+              color: '#1A1A1A',
+              fontFamily: 'Nunito_400Regular',
+            }}
+          >
+            {emailDisplay}
+          </Text>
+        </View>
+      </View>
+    </View>
+  );
+}
 
-  const fetchDashboard = useCallback(async (date: Date) => {
-    setDashLoading(true);
-    const dateStr = toYMD(date);
-    console.log('[DriverProfile] Fetching dashboard for date:', dateStr);
-    try {
-      const data = await apiGet<DriverDashboard>(`/api/driver/dashboard?date=${dateStr}`);
-      setDashboard(data);
-    } catch (e) {
-      console.error('[DriverProfile] Dashboard fetch failed:', e);
-    } finally {
-      setDashLoading(false);
-    }
-  }, []);
+function VehicleDetailsCard({ profile }: { profile: ApiProfile }) {
+  const makeDisplay = profile.vehicle_make || '—';
+  const modelDisplay = profile.vehicle_model || '—';
+  const plateDisplay = profile.license_plate || '—';
+  const idDisplay = profile.national_id || '—';
+  return (
+    <View style={CARD_STYLE}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 14 }}>
+        <Text style={{ fontSize: 16 }}>🚗</Text>
+        <Text
+          style={{
+            fontSize: 16,
+            fontWeight: '700',
+            color: '#1A1A1A',
+            fontFamily: 'Nunito_700Bold',
+          }}
+        >
+          Vehicle Details
+        </Text>
+      </View>
+      <View style={{ gap: 12 }}>
+        <VehicleRow label="Make" value={makeDisplay} />
+        <VehicleRow label="Model" value={modelDisplay} />
+        <VehicleRow label="License Plate" value={plateDisplay} bold />
+        <VehicleRow label="National ID" value={idDisplay} />
+      </View>
+    </View>
+  );
+}
 
-  useEffect(() => {
-    fetchDashboard(selectedDate);
-  }, []);
+function VehicleRow({ label, value, bold }: { label: string; value: string; bold?: boolean }) {
+  return (
+    <View
+      style={{
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingVertical: 4,
+        borderBottomWidth: 1,
+        borderBottomColor: 'rgba(0,0,0,0.05)',
+      }}
+    >
+      <Text
+        style={{
+          fontSize: 13,
+          color: '#888',
+          fontFamily: 'Nunito_400Regular',
+        }}
+      >
+        {label}
+      </Text>
+      <Text
+        style={{
+          fontSize: bold ? 16 : 14,
+          fontWeight: bold ? '700' : '600',
+          color: '#1A1A1A',
+          fontFamily: bold ? 'Nunito_700Bold' : 'Nunito_600SemiBold',
+        }}
+      >
+        {value}
+      </Text>
+    </View>
+  );
+}
 
-  const handleDateChange = (_: any, date?: Date) => {
-    setShowPicker(false);
-    if (date) {
-      console.log('[DriverProfile] Date changed to:', toYMD(date));
-      setSelectedDate(date);
-      fetchDashboard(date);
-    }
+function DateRangePicker({
+  fromDate,
+  toDate,
+  onFromChange,
+  onToChange,
+}: {
+  fromDate: Date;
+  toDate: Date;
+  onFromChange: (d: Date) => void;
+  onToChange: (d: Date) => void;
+}) {
+  const [showFrom, setShowFrom] = useState(false);
+  const [showTo, setShowTo] = useState(false);
+
+  const fromLabel = formatDate(fromDate.toISOString());
+  const toLabel = formatDate(toDate.toISOString());
+
+  const handleFromPress = () => {
+    console.log('[DateRangePicker] From date picker opened');
+    setShowFrom(true);
   };
 
+  const handleToPress = () => {
+    console.log('[DateRangePicker] To date picker opened');
+    setShowTo(true);
+  };
+
+  return (
+    <View style={{ flexDirection: 'row', gap: 10, marginBottom: 14 }}>
+      <View style={{ flex: 1 }}>
+        <Text
+          style={{
+            fontSize: 11,
+            color: '#888',
+            fontFamily: 'Nunito_600SemiBold',
+            textTransform: 'uppercase',
+            letterSpacing: 0.5,
+            marginBottom: 4,
+          }}
+        >
+          From
+        </Text>
+        <TouchableOpacity
+          onPress={handleFromPress}
+          style={{
+            backgroundColor: '#FFFFFF',
+            borderRadius: 10,
+            paddingHorizontal: 12,
+            paddingVertical: 10,
+            borderWidth: 1,
+            borderColor: 'rgba(245,166,35,0.4)',
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 6,
+          }}
+        >
+          <Text style={{ fontSize: 13 }}>📅</Text>
+          <Text
+            style={{
+              fontSize: 13,
+              fontWeight: '600',
+              color: '#1A1A1A',
+              fontFamily: 'Nunito_600SemiBold',
+            }}
+          >
+            {fromLabel}
+          </Text>
+        </TouchableOpacity>
+        {showFrom && (
+          <DateTimePicker
+            value={fromDate}
+            mode="date"
+            display="default"
+            maximumDate={toDate}
+            onChange={(_: any, date?: Date) => {
+              setShowFrom(Platform.OS === 'ios');
+              if (date) {
+                console.log('[DateRangePicker] From date changed:', toYMD(date));
+                onFromChange(date);
+              }
+            }}
+          />
+        )}
+      </View>
+
+      <View style={{ flex: 1 }}>
+        <Text
+          style={{
+            fontSize: 11,
+            color: '#888',
+            fontFamily: 'Nunito_600SemiBold',
+            textTransform: 'uppercase',
+            letterSpacing: 0.5,
+            marginBottom: 4,
+          }}
+        >
+          To
+        </Text>
+        <TouchableOpacity
+          onPress={handleToPress}
+          style={{
+            backgroundColor: '#FFFFFF',
+            borderRadius: 10,
+            paddingHorizontal: 12,
+            paddingVertical: 10,
+            borderWidth: 1,
+            borderColor: 'rgba(245,166,35,0.4)',
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 6,
+          }}
+        >
+          <Text style={{ fontSize: 13 }}>📅</Text>
+          <Text
+            style={{
+              fontSize: 13,
+              fontWeight: '600',
+              color: '#1A1A1A',
+              fontFamily: 'Nunito_600SemiBold',
+            }}
+          >
+            {toLabel}
+          </Text>
+        </TouchableOpacity>
+        {showTo && (
+          <DateTimePicker
+            value={toDate}
+            mode="date"
+            display="default"
+            minimumDate={fromDate}
+            maximumDate={new Date()}
+            onChange={(_: any, date?: Date) => {
+              setShowTo(Platform.OS === 'ios');
+              if (date) {
+                console.log('[DateRangePicker] To date changed:', toYMD(date));
+                onToChange(date);
+              }
+            }}
+          />
+        )}
+      </View>
+    </View>
+  );
+}
+
+function RideHistoryItem({ ride }: { ride: RideItem }) {
+  const currencyDisplay = String(ride.currency || 'KES').toUpperCase();
+  const finalPriceDisplay = formatNumber(Number(ride.final_price || 0));
+  const priceLabel = `${currencyDisplay} ${finalPriceDisplay}`;
+  const dateDisplay = formatDate(ride.created_at);
+  const destinationDisplay = ride.destination || '—';
+  const routeDisplay = `${ride.pickup_location || '—'} → ${ride.destination || '—'}`;
+
+  return (
+    <View
+      style={{
+        backgroundColor: '#FFFFFF',
+        borderRadius: 12,
+        padding: 14,
+        marginBottom: 10,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.05,
+        shadowRadius: 4,
+        elevation: 2,
+      }}
+    >
+      <View
+        style={{
+          flexDirection: 'row',
+          justifyContent: 'space-between',
+          alignItems: 'flex-start',
+          marginBottom: 8,
+        }}
+      >
+        <View style={{ flex: 1, marginRight: 8 }}>
+          <Text
+            style={{
+              fontSize: 14,
+              fontWeight: '700',
+              color: '#1A1A1A',
+              fontFamily: 'Nunito_700Bold',
+              marginBottom: 3,
+            }}
+            numberOfLines={1}
+          >
+            {destinationDisplay}
+          </Text>
+          <Text
+            style={{
+              fontSize: 12,
+              color: '#888',
+              fontFamily: 'Nunito_400Regular',
+            }}
+            numberOfLines={1}
+          >
+            {routeDisplay}
+          </Text>
+        </View>
+        <Text
+          style={{
+            fontSize: 12,
+            color: '#888',
+            fontFamily: 'Nunito_400Regular',
+          }}
+        >
+          {dateDisplay}
+        </Text>
+      </View>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Text
+          style={{
+            fontSize: 14,
+            fontWeight: '700',
+            color: '#F5A623',
+            fontFamily: 'Nunito_700Bold',
+          }}
+        >
+          {priceLabel}
+        </Text>
+        <StatusBadge status={ride.status} />
+      </View>
+    </View>
+  );
+}
+
+function SignOutButton() {
+  const { signOut } = useAuth();
+  const [signingOut, setSigningOut] = useState(false);
+
   const handleSignOut = async () => {
-    console.log('[DriverProfile] Sign out pressed');
+    console.log('[ProfileScreen] Sign out pressed');
     setSigningOut(true);
     try {
       await signOut();
@@ -144,315 +551,374 @@ function DriverProfile() {
     }
   };
 
-  const ridesCountDisplay = dashboard ? String(dashboard.rides_count ?? 0) : '—';
-  const earningsDisplay = dashboard ? formatCurrency(dashboard.total_earnings ?? 0, dashboard.currency || currency) : '—';
-  const kmDisplay = dashboard ? `${Number(dashboard.total_km ?? 0).toFixed(1)} km` : '—';
-  const memberSinceDisplay = formatDate(profile?.created_at);
-  const dateLabel = selectedDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+  return (
+    <AnimatedPressable
+      onPress={handleSignOut}
+      disabled={signingOut}
+      style={{
+        backgroundColor: 'rgba(239,68,68,0.1)',
+        borderRadius: 14,
+        height: 52,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 8,
+        borderWidth: 1,
+        borderColor: '#EF4444',
+        marginTop: 4,
+        marginBottom: 8,
+      }}
+    >
+      {signingOut ? (
+        <ActivityIndicator color="#EF4444" />
+      ) : (
+        <>
+          <LogOut size={18} color="#EF4444" />
+          <Text
+            style={{
+              fontSize: 15,
+              fontWeight: '700',
+              color: '#EF4444',
+              fontFamily: 'Nunito_700Bold',
+            }}
+          >
+            Sign Out
+          </Text>
+        </>
+      )}
+    </AnimatedPressable>
+  );
+}
+
+// ─── Driver Profile ───────────────────────────────────────────────────────────
+
+function DriverProfile({ profile }: { profile: ApiProfile }) {
+  const insets = useSafeAreaInsets();
+
+  const defaultTo = new Date();
+  const defaultFrom = new Date();
+  defaultFrom.setDate(defaultFrom.getDate() - 30);
+
+  const [fromDate, setFromDate] = useState(defaultFrom);
+  const [toDate, setToDate] = useState(defaultTo);
+  const [stats, setStats] = useState<RideStats | null>(null);
+  const [statsLoading, setStatsLoading] = useState(false);
+  const [statsError, setStatsError] = useState<string | null>(null);
+
+  const fetchStats = useCallback(async (from: Date, to: Date) => {
+    console.log('[DriverProfile] Fetching ride-stats from:', toYMD(from), 'to:', toYMD(to));
+    setStatsLoading(true);
+    setStatsError(null);
+    try {
+      const data = await apiGet<RideStats>(
+        `/api/ride-stats?from=${toYMD(from)}&to=${toYMD(to)}&role=driver`
+      );
+      console.log('[DriverProfile] ride-stats response:', data);
+      setStats(data);
+    } catch (e: any) {
+      console.error('[DriverProfile] ride-stats fetch failed:', e);
+      setStatsError(e?.message || 'Failed to load stats');
+    } finally {
+      setStatsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchStats(fromDate, toDate);
+  }, []);
+
+  const handleFromChange = (d: Date) => {
+    setFromDate(d);
+    fetchStats(d, toDate);
+  };
+
+  const handleToChange = (d: Date) => {
+    setToDate(d);
+    fetchStats(fromDate, d);
+  };
+
+  const totalRidesDisplay = stats ? formatNumber(stats.total_rides) : '—';
+  const currency =
+    stats && stats.rides && stats.rides.length > 0
+      ? String(stats.rides[0].currency || 'KES').toUpperCase()
+      : 'KES';
+  const earningsDisplay = stats
+    ? `${currency} ${formatNumber(Number(stats.total_earnings || 0))}`
+    : '—';
+  const distanceDisplay = stats
+    ? `${Number(stats.total_distance_km || 0).toFixed(1)} km`
+    : '—';
+  const memberSince = formatDate(profile.created_at);
 
   return (
     <ScrollView
-      style={{ flex: 1, backgroundColor: COLORS.background }}
-      contentContainerStyle={{ paddingBottom: 120 }}
+      style={{ flex: 1, backgroundColor: '#FAF7F0' }}
+      contentContainerStyle={{ paddingBottom: 100, paddingHorizontal: 16 }}
       showsVerticalScrollIndicator={false}
     >
-      <View style={{ paddingTop: insets.top + 12, paddingHorizontal: 20, paddingBottom: 8 }}>
-        <Text style={{ fontSize: 26, fontWeight: '800', color: COLORS.text, fontFamily: 'Nunito_800ExtraBold' }}>
-          {t('profile')}
+      <View style={{ paddingTop: insets.top + 16, paddingBottom: 8 }}>
+        <Text
+          style={{
+            fontSize: 26,
+            fontWeight: '800',
+            color: '#1A1A1A',
+            fontFamily: 'Nunito_800ExtraBold',
+          }}
+        >
+          Profile
         </Text>
       </View>
 
-      <View style={{ paddingHorizontal: 16, gap: 16 }}>
-        {/* Profile card */}
-        {profile && <ProfileCard profile={profile} />}
+      <ProfileHeaderCard profile={profile} />
+      <VehicleDetailsCard profile={profile} />
 
-        {/* Vehicle card */}
-        {driverDetails && (
-          <View
-            style={{
-              backgroundColor: COLORS.surface,
-              borderRadius: 16,
-              padding: 16,
-              borderWidth: 1,
-              borderColor: COLORS.border,
-              boxShadow: '0 1px 6px rgba(90,60,0,0.05)',
-              gap: 12,
-            }}
-          >
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <Car size={18} color={COLORS.primary} />
-              <Text style={{ fontSize: 15, fontWeight: '700', color: COLORS.text, fontFamily: 'Nunito_700Bold' }}>
-                Vehicle Details
-              </Text>
-            </View>
-            <View style={{ flexDirection: 'row', gap: 12 }}>
-              <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 11, color: COLORS.textTertiary, fontFamily: 'Nunito_600SemiBold', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 2 }}>
-                  Make
-                </Text>
-                <Text style={{ fontSize: 15, fontWeight: '600', color: COLORS.text, fontFamily: 'Nunito_600SemiBold' }}>
-                  {driverDetails.car_make}
-                </Text>
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 11, color: COLORS.textTertiary, fontFamily: 'Nunito_600SemiBold', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 2 }}>
-                  Registration
-                </Text>
-                <Text style={{ fontSize: 15, fontWeight: '600', color: COLORS.text, fontFamily: 'Nunito_600SemiBold' }}>
-                  {driverDetails.car_registration}
-                </Text>
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 11, color: COLORS.textTertiary, fontFamily: 'Nunito_600SemiBold', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 2 }}>
-                  Color
-                </Text>
-                <Text style={{ fontSize: 15, fontWeight: '600', color: COLORS.text, fontFamily: 'Nunito_600SemiBold' }}>
-                  {driverDetails.car_color}
-                </Text>
-              </View>
-            </View>
-          </View>
-        )}
-
-        {/* Dashboard section */}
-        <View>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-            <Text style={{ fontSize: 17, fontWeight: '700', color: COLORS.text, fontFamily: 'Nunito_700Bold' }}>
-              {t('dashboard')}
-            </Text>
-            <AnimatedPressable
-              onPress={() => {
-                console.log('[DriverProfile] Date picker opened');
-                setShowPicker(true);
-              }}
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                gap: 6,
-                backgroundColor: COLORS.primaryMuted,
-                borderRadius: 10,
-                paddingHorizontal: 12,
-                paddingVertical: 6,
-                borderWidth: 1,
-                borderColor: COLORS.primary,
-              }}
-            >
-              <Calendar size={14} color={COLORS.textSecondary} />
-              <Text style={{ fontSize: 13, fontWeight: '600', color: COLORS.textSecondary, fontFamily: 'Nunito_600SemiBold' }}>
-                {dateLabel}
-              </Text>
-            </AnimatedPressable>
-          </View>
-
-          {showPicker && (
-            <DateTimePicker
-              value={selectedDate}
-              mode="date"
-              display="default"
-              onChange={handleDateChange}
-              maximumDate={new Date()}
-            />
-          )}
-
-          {dashLoading ? (
-            <View style={{ alignItems: 'center', paddingVertical: 24 }}>
-              <ActivityIndicator color={COLORS.primary} />
-            </View>
-          ) : (
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
-              <View style={{ width: '48%' }}>
-                <StatCard icon="🚗" label={t('ridesCount')} value={ridesCountDisplay} />
-              </View>
-              <View style={{ width: '48%' }}>
-                <StatCard icon="💰" label={t('earnings')} value={earningsDisplay} />
-              </View>
-              <View style={{ width: '48%' }}>
-                <StatCard icon="📍" label={t('kmDriven')} value={kmDisplay} />
-              </View>
-              <View style={{ width: '48%' }}>
-                <StatCard icon="📅" label={t('memberSince')} value={memberSinceDisplay} />
-              </View>
-            </View>
-          )}
-        </View>
-
-        {/* Sign out */}
-        <AnimatedPressable
-          onPress={handleSignOut}
-          disabled={signingOut}
+      {/* Ride History */}
+      <View style={CARD_STYLE}>
+        <Text
           style={{
-            backgroundColor: COLORS.dangerMuted,
-            borderRadius: 14,
-            height: 52,
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 8,
-            borderWidth: 1,
-            borderColor: COLORS.danger,
-            marginTop: 8,
+            fontSize: 16,
+            fontWeight: '700',
+            color: '#1A1A1A',
+            fontFamily: 'Nunito_700Bold',
+            marginBottom: 14,
           }}
         >
-          {signingOut ? (
-            <ActivityIndicator color={COLORS.danger} />
-          ) : (
-            <>
-              <LogOut size={18} color={COLORS.danger} />
-              <Text style={{ fontSize: 15, fontWeight: '700', color: COLORS.danger, fontFamily: 'Nunito_700Bold' }}>
-                {t('signOut')}
+          Ride History
+        </Text>
+
+        <DateRangePicker
+          fromDate={fromDate}
+          toDate={toDate}
+          onFromChange={handleFromChange}
+          onToChange={handleToChange}
+        />
+
+        {statsLoading ? (
+          <View style={{ alignItems: 'center', paddingVertical: 24 }}>
+            <ActivityIndicator color="#F5A623" size="large" />
+          </View>
+        ) : statsError ? (
+          <View style={{ alignItems: 'center', paddingVertical: 20, gap: 10 }}>
+            <Text style={{ fontSize: 13, color: '#EF4444', fontFamily: 'Nunito_400Regular', textAlign: 'center' }}>
+              {statsError}
+            </Text>
+            <TouchableOpacity
+              onPress={() => {
+                console.log('[DriverProfile] Retry stats fetch pressed');
+                fetchStats(fromDate, toDate);
+              }}
+              style={{
+                backgroundColor: '#F5A623',
+                borderRadius: 10,
+                paddingHorizontal: 20,
+                paddingVertical: 8,
+              }}
+            >
+              <Text style={{ fontSize: 13, fontWeight: '700', color: '#FFFFFF', fontFamily: 'Nunito_700Bold' }}>
+                Retry
               </Text>
-            </>
-          )}
-        </AnimatedPressable>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <>
+            <View style={{ flexDirection: 'row', gap: 10, marginBottom: 12 }}>
+              <View style={{ flex: 1 }}>
+                <StatCard icon="🚗" label="Rides" value={totalRidesDisplay} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <StatCard icon="💰" label="Earnings" value={earningsDisplay} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <StatCard icon="📍" label="Distance" value={distanceDisplay} />
+              </View>
+            </View>
+
+            <Text
+              style={{
+                fontSize: 12,
+                color: '#888',
+                fontFamily: 'Nunito_400Regular',
+                marginBottom: 16,
+              }}
+            >
+              Member since {memberSince}
+            </Text>
+
+            {stats && stats.rides && stats.rides.length > 0 ? (
+              stats.rides.map((ride) => <RideHistoryItem key={ride.id} ride={ride} />)
+            ) : (
+              <View style={{ alignItems: 'center', paddingVertical: 20 }}>
+                <Text style={{ fontSize: 14, color: '#888', fontFamily: 'Nunito_400Regular' }}>
+                  No rides in this period
+                </Text>
+              </View>
+            )}
+          </>
+        )}
       </View>
+
+      <SignOutButton />
     </ScrollView>
   );
 }
 
 // ─── Rider Profile ────────────────────────────────────────────────────────────
 
-function RiderProfile() {
-  const { profile } = useProfile();
-  const { t } = useTranslation();
+function RiderProfile({ profile }: { profile: ApiProfile }) {
   const insets = useSafeAreaInsets();
-  const { signOut } = useAuth();
-  const [recentRides, setRecentRides] = useState<RideRequest[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [signingOut, setSigningOut] = useState(false);
 
-  useEffect(() => {
-    console.log('[RiderProfile] Fetching recent rides');
-    apiGet<{ requests: RideRequest[] }>('/api/rides/my-requests')
-      .then((data) => setRecentRides((data.requests || []).slice(0, 5)))
-      .catch((e) => console.error('[RiderProfile] Failed to fetch rides:', e))
-      .finally(() => setLoading(false));
+  const defaultTo = new Date();
+  const defaultFrom = new Date();
+  defaultFrom.setDate(defaultFrom.getDate() - 30);
+
+  const [fromDate, setFromDate] = useState(defaultFrom);
+  const [toDate, setToDate] = useState(defaultTo);
+  const [stats, setStats] = useState<RideStats | null>(null);
+  const [statsLoading, setStatsLoading] = useState(false);
+  const [statsError, setStatsError] = useState<string | null>(null);
+
+  const fetchStats = useCallback(async (from: Date, to: Date) => {
+    console.log('[RiderProfile] Fetching ride-stats from:', toYMD(from), 'to:', toYMD(to));
+    setStatsLoading(true);
+    setStatsError(null);
+    try {
+      const data = await apiGet<RideStats>(
+        `/api/ride-stats?from=${toYMD(from)}&to=${toYMD(to)}&role=rider`
+      );
+      console.log('[RiderProfile] ride-stats response:', data);
+      setStats(data);
+    } catch (e: any) {
+      console.error('[RiderProfile] ride-stats fetch failed:', e);
+      setStatsError(e?.message || 'Failed to load stats');
+    } finally {
+      setStatsLoading(false);
+    }
   }, []);
 
-  const handleSignOut = async () => {
-    console.log('[RiderProfile] Sign out pressed');
-    setSigningOut(true);
-    try {
-      await signOut();
-    } finally {
-      setSigningOut(false);
-    }
+  useEffect(() => {
+    fetchStats(fromDate, toDate);
+  }, []);
+
+  const handleFromChange = (d: Date) => {
+    setFromDate(d);
+    fetchStats(d, toDate);
   };
+
+  const handleToChange = (d: Date) => {
+    setToDate(d);
+    fetchStats(fromDate, d);
+  };
+
+  const totalRidesDisplay = stats ? formatNumber(stats.total_rides) : '—';
+  const distanceDisplay = stats
+    ? `${Number(stats.total_distance_km || 0).toFixed(1)} km`
+    : '—';
+  const memberSince = formatDate(profile.created_at);
 
   return (
     <ScrollView
-      style={{ flex: 1, backgroundColor: COLORS.background }}
-      contentContainerStyle={{ paddingBottom: 120 }}
+      style={{ flex: 1, backgroundColor: '#FAF7F0' }}
+      contentContainerStyle={{ paddingBottom: 100, paddingHorizontal: 16 }}
       showsVerticalScrollIndicator={false}
     >
-      <View style={{ paddingTop: insets.top + 12, paddingHorizontal: 20, paddingBottom: 8 }}>
-        <Text style={{ fontSize: 26, fontWeight: '800', color: COLORS.text, fontFamily: 'Nunito_800ExtraBold' }}>
-          {t('profile')}
+      <View style={{ paddingTop: insets.top + 16, paddingBottom: 8 }}>
+        <Text
+          style={{
+            fontSize: 26,
+            fontWeight: '800',
+            color: '#1A1A1A',
+            fontFamily: 'Nunito_800ExtraBold',
+          }}
+        >
+          Profile
         </Text>
       </View>
 
-      <View style={{ paddingHorizontal: 16, gap: 16 }}>
-        {/* Profile card */}
-        {profile && <ProfileCard profile={profile} />}
+      <ProfileHeaderCard profile={profile} />
 
-        {/* Recent rides */}
-        <View>
-          <Text style={{ fontSize: 17, fontWeight: '700', color: COLORS.text, fontFamily: 'Nunito_700Bold', marginBottom: 12 }}>
-            Recent Requests
-          </Text>
-
-          {loading ? (
-            <ActivityIndicator color={COLORS.primary} />
-          ) : recentRides.length === 0 ? (
-            <View
-              style={{
-                backgroundColor: COLORS.surface,
-                borderRadius: 16,
-                padding: 20,
-                alignItems: 'center',
-                borderWidth: 1,
-                borderColor: COLORS.border,
-                gap: 8,
-              }}
-            >
-              <Text style={{ fontSize: 22 }}>🚗</Text>
-              <Text style={{ fontSize: 15, fontWeight: '600', color: COLORS.text, fontFamily: 'Nunito_600SemiBold' }}>
-                No rides yet
-              </Text>
-              <Text style={{ fontSize: 13, color: COLORS.textSecondary, fontFamily: 'Nunito_400Regular', textAlign: 'center' }}>
-                Your recent ride requests will appear here
-              </Text>
-            </View>
-          ) : (
-            recentRides.map((ride, i) => {
-              const priceDisplay = formatCurrency(ride.price_offer, ride.currency);
-              const dateDisplay = formatDate(ride.created_at);
-              return (
-                <View
-                  key={ride.id}
-                  style={{
-                    backgroundColor: COLORS.surface,
-                    borderRadius: 14,
-                    padding: 14,
-                    marginBottom: 8,
-                    borderWidth: 1,
-                    borderColor: COLORS.border,
-                    boxShadow: '0 1px 4px rgba(90,60,0,0.04)',
-                  }}
-                >
-                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
-                    <View style={{ flex: 1, gap: 4 }}>
-                      <Text style={{ fontSize: 13, fontWeight: '600', color: COLORS.text, fontFamily: 'Nunito_600SemiBold' }} numberOfLines={1}>
-                        {ride.pickup_location}
-                      </Text>
-                      <Text style={{ fontSize: 12, color: COLORS.textSecondary, fontFamily: 'Nunito_400Regular' }} numberOfLines={1}>
-                        → {ride.destination}
-                      </Text>
-                    </View>
-                    <StatusBadge status={ride.status} />
-                  </View>
-                  <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                    <Text style={{ fontSize: 14, fontWeight: '700', color: COLORS.textSecondary, fontFamily: 'Nunito_700Bold' }}>
-                      {priceDisplay}
-                    </Text>
-                    <Text style={{ fontSize: 11, color: COLORS.textTertiary, fontFamily: 'Nunito_400Regular' }}>
-                      {dateDisplay}
-                    </Text>
-                  </View>
-                </View>
-              );
-            })
-          )}
-        </View>
-
-        {/* Sign out */}
-        <AnimatedPressable
-          onPress={handleSignOut}
-          disabled={signingOut}
+      {/* My Rides */}
+      <View style={CARD_STYLE}>
+        <Text
           style={{
-            backgroundColor: COLORS.dangerMuted,
-            borderRadius: 14,
-            height: 52,
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 8,
-            borderWidth: 1,
-            borderColor: COLORS.danger,
-            marginTop: 8,
+            fontSize: 16,
+            fontWeight: '700',
+            color: '#1A1A1A',
+            fontFamily: 'Nunito_700Bold',
+            marginBottom: 14,
           }}
         >
-          {signingOut ? (
-            <ActivityIndicator color={COLORS.danger} />
-          ) : (
-            <>
-              <LogOut size={18} color={COLORS.danger} />
-              <Text style={{ fontSize: 15, fontWeight: '700', color: COLORS.danger, fontFamily: 'Nunito_700Bold' }}>
-                {t('signOut')}
+          My Rides
+        </Text>
+
+        <DateRangePicker
+          fromDate={fromDate}
+          toDate={toDate}
+          onFromChange={handleFromChange}
+          onToChange={handleToChange}
+        />
+
+        {statsLoading ? (
+          <View style={{ alignItems: 'center', paddingVertical: 24 }}>
+            <ActivityIndicator color="#F5A623" size="large" />
+          </View>
+        ) : statsError ? (
+          <View style={{ alignItems: 'center', paddingVertical: 20, gap: 10 }}>
+            <Text style={{ fontSize: 13, color: '#EF4444', fontFamily: 'Nunito_400Regular', textAlign: 'center' }}>
+              {statsError}
+            </Text>
+            <TouchableOpacity
+              onPress={() => {
+                console.log('[RiderProfile] Retry stats fetch pressed');
+                fetchStats(fromDate, toDate);
+              }}
+              style={{
+                backgroundColor: '#F5A623',
+                borderRadius: 10,
+                paddingHorizontal: 20,
+                paddingVertical: 8,
+              }}
+            >
+              <Text style={{ fontSize: 13, fontWeight: '700', color: '#FFFFFF', fontFamily: 'Nunito_700Bold' }}>
+                Retry
               </Text>
-            </>
-          )}
-        </AnimatedPressable>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <>
+            <View style={{ flexDirection: 'row', gap: 10, marginBottom: 12 }}>
+              <View style={{ flex: 1 }}>
+                <StatCard icon="🚗" label="Rides" value={totalRidesDisplay} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <StatCard icon="📍" label="Distance" value={distanceDisplay} />
+              </View>
+            </View>
+
+            <Text
+              style={{
+                fontSize: 12,
+                color: '#888',
+                fontFamily: 'Nunito_400Regular',
+                marginBottom: 16,
+              }}
+            >
+              Member since {memberSince}
+            </Text>
+
+            {stats && stats.rides && stats.rides.length > 0 ? (
+              stats.rides.map((ride) => <RideHistoryItem key={ride.id} ride={ride} />)
+            ) : (
+              <View style={{ alignItems: 'center', paddingVertical: 20 }}>
+                <Text style={{ fontSize: 14, color: '#888', fontFamily: 'Nunito_400Regular' }}>
+                  No rides in this period
+                </Text>
+              </View>
+            )}
+          </>
+        )}
       </View>
+
+      <SignOutButton />
     </ScrollView>
   );
 }
@@ -460,18 +926,87 @@ function RiderProfile() {
 // ─── Main export ──────────────────────────────────────────────────────────────
 
 export default function ProfileScreen() {
-  const { profile, profileLoading } = useProfile();
+  const { user } = useAuth();
+  const [profile, setProfile] = useState<ApiProfile | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  if (profileLoading || !profile) {
+  const fetchProfile = useCallback(async () => {
+    console.log('[ProfileScreen] Fetching /api/profile');
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await apiGet<ApiProfile>('/api/profile');
+      console.log('[ProfileScreen] Profile loaded, role:', data.role);
+      setProfile(data);
+    } catch (e: any) {
+      console.error('[ProfileScreen] Profile fetch failed:', e);
+      setError(e?.message || 'Failed to load profile');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (user) {
+      fetchProfile();
+    } else {
+      setLoading(false);
+    }
+  }, [user]);
+
+  if (loading) {
     return (
-      <View style={{ flex: 1, backgroundColor: COLORS.background, alignItems: 'center', justifyContent: 'center' }}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
+      <View
+        style={{
+          flex: 1,
+          backgroundColor: '#FAF7F0',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <ActivityIndicator size="large" color="#F5A623" />
       </View>
     );
   }
 
-  if (profile.user_type === 'driver') {
-    return <DriverProfile />;
+  if (error || !profile) {
+    return (
+      <View
+        style={{
+          flex: 1,
+          backgroundColor: '#FAF7F0',
+          alignItems: 'center',
+          justifyContent: 'center',
+          paddingHorizontal: 32,
+          gap: 16,
+        }}
+      >
+        <Text style={{ fontSize: 16, color: '#EF4444', fontFamily: 'Nunito_400Regular', textAlign: 'center' }}>
+          {error || 'Could not load profile'}
+        </Text>
+        <TouchableOpacity
+          onPress={() => {
+            console.log('[ProfileScreen] Retry profile fetch pressed');
+            fetchProfile();
+          }}
+          style={{
+            backgroundColor: '#F5A623',
+            borderRadius: 12,
+            paddingHorizontal: 28,
+            paddingVertical: 12,
+          }}
+        >
+          <Text style={{ fontSize: 15, fontWeight: '700', color: '#FFFFFF', fontFamily: 'Nunito_700Bold' }}>
+            Retry
+          </Text>
+        </TouchableOpacity>
+      </View>
+    );
   }
-  return <RiderProfile />;
+
+  if (profile.role === 'driver') {
+    return <DriverProfile profile={profile} />;
+  }
+  return <RiderProfile profile={profile} />;
 }

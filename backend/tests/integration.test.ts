@@ -68,6 +68,11 @@ describe("API Integration Tests", () => {
       });
       await expectStatus(res, 400);
     });
+
+    test("Get profile without auth should return 401", async () => {
+      const res = await api("/api/profiles/me");
+      await expectStatus(res, 401);
+    });
   });
 
   // User Profile (Combined) endpoint

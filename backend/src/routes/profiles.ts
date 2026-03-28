@@ -18,6 +18,7 @@ interface UpdateProfileBody {
   last_name?: string;
   resident_district?: string;
   mobile_number?: string;
+  phone?: string;
   profile_picture_url?: string;
 }
 
@@ -40,7 +41,7 @@ export function register(app: App, fastify: FastifyInstance) {
             first_name: { type: 'string' },
             last_name: { type: 'string' },
             resident_district: { type: 'string' },
-            mobile_number: { type: ['string', 'null'] },
+            phone: { type: ['string', 'null'] },
             country: { type: 'string', enum: ['kenya', 'tanzania', 'uganda'] },
             language: { type: 'string', enum: ['english', 'swahili', 'luganda'] },
             profile_picture_url: { type: ['string', 'null'] },
@@ -73,7 +74,11 @@ export function register(app: App, fastify: FastifyInstance) {
     }
 
     app.logger.info({ userId: session.user.id, profileId: profile.id }, 'Profile retrieved successfully');
-    return reply.send(profile);
+    // Return response with phone field using COALESCE logic
+    return reply.send({
+      ...profile,
+      phone: profile.phone || profile.mobile_number,
+    });
   });
 
   // POST /api/profiles/me - Upsert profile for current user
@@ -147,6 +152,7 @@ export function register(app: App, fastify: FastifyInstance) {
             first_name: firstName,
             last_name: lastName,
             mobile_number: phone,
+            phone: phone,
             country,
             language,
             resident_district: '',
@@ -166,13 +172,17 @@ export function register(app: App, fastify: FastifyInstance) {
           country,
           language,
           mobile_number: phone,
+          phone: phone,
           profile_picture_url: null,
         }).returning();
         profile = created;
       }
 
       app.logger.info({ userId: session.user.id, profileId: profile.id }, 'Profile upserted successfully');
-      return reply.send(profile);
+      return reply.send({
+        ...profile,
+        mobile_number: profile.phone || profile.mobile_number,
+      });
     } catch (error) {
       app.logger.error({ err: error, userId: session.user.id, body: request.body }, 'Failed to upsert profile');
       throw error;
@@ -191,6 +201,7 @@ export function register(app: App, fastify: FastifyInstance) {
           last_name: { type: 'string' },
           resident_district: { type: 'string' },
           mobile_number: { type: 'string' },
+          phone: { type: 'string' },
           profile_picture_url: { type: 'string' },
         },
       },
@@ -205,7 +216,7 @@ export function register(app: App, fastify: FastifyInstance) {
             first_name: { type: 'string' },
             last_name: { type: 'string' },
             resident_district: { type: 'string' },
-            mobile_number: { type: ['string', 'null'] },
+            phone: { type: ['string', 'null'] },
             country: { type: 'string' },
             language: { type: 'string' },
             profile_picture_url: { type: ['string', 'null'] },
@@ -245,7 +256,17 @@ export function register(app: App, fastify: FastifyInstance) {
       if (request.body.first_name) updates.first_name = request.body.first_name;
       if (request.body.last_name) updates.last_name = request.body.last_name;
       if (request.body.resident_district) updates.resident_district = request.body.resident_district;
-      if (request.body.mobile_number !== undefined) updates.mobile_number = request.body.mobile_number || null;
+
+      // Handle phone updates - write to both columns
+      if (request.body.phone !== undefined) {
+        updates.phone = request.body.phone || null;
+        updates.mobile_number = request.body.phone || null;
+      }
+      if (request.body.mobile_number !== undefined) {
+        updates.mobile_number = request.body.mobile_number || null;
+        updates.phone = request.body.mobile_number || null;
+      }
+
       if (request.body.profile_picture_url !== undefined) updates.profile_picture_url = request.body.profile_picture_url || null;
 
       const [updated] = await app.db.update(schema.profiles)
@@ -254,7 +275,10 @@ export function register(app: App, fastify: FastifyInstance) {
         .returning();
 
       app.logger.info({ userId: session.user.id, profileId: profile.id }, 'Profile updated successfully');
-      return reply.send(updated);
+      return reply.send({
+        ...updated,
+        phone: updated.phone || updated.mobile_number,
+      });
     } catch (error) {
       app.logger.error({ err: error, userId: session.user.id, body: request.body }, 'Failed to update profile');
       throw error;
@@ -354,13 +378,22 @@ export function register(app: App, fastify: FastifyInstance) {
 
         // Build dynamic profile updates
         const profileUpdates: Record<string, any> = {};
-        if (request.body.phone !== undefined) profileUpdates.phone = request.body.phone;
+
+        // Handle phone updates - write to both columns
+        if (request.body.phone !== undefined) {
+          profileUpdates.phone = request.body.phone;
+          profileUpdates.mobile_number = request.body.phone;
+        }
+        if (request.body.mobile_number !== undefined) {
+          profileUpdates.mobile_number = request.body.mobile_number;
+          profileUpdates.phone = request.body.mobile_number;
+        }
+
         if (request.body.role !== undefined) profileUpdates.role = request.body.role;
         if (request.body.full_name !== undefined) profileUpdates.full_name = request.body.full_name;
         if (request.body.first_name !== undefined) profileUpdates.first_name = request.body.first_name;
         if (request.body.last_name !== undefined) profileUpdates.last_name = request.body.last_name;
         if (request.body.resident_district !== undefined) profileUpdates.resident_district = request.body.resident_district;
-        if (request.body.mobile_number !== undefined) profileUpdates.mobile_number = request.body.mobile_number;
         if (request.body.vehicle_make !== undefined) profileUpdates.vehicle_make = request.body.vehicle_make;
         if (request.body.vehicle_model !== undefined) profileUpdates.vehicle_model = request.body.vehicle_model;
         if (request.body.license_plate !== undefined) profileUpdates.license_plate = request.body.license_plate;
@@ -391,6 +424,7 @@ export function register(app: App, fastify: FastifyInstance) {
           ...updated,
           name: user?.name,
           email: user?.email,
+          phone: updated?.phone || updated?.mobile_number,
         };
 
         app.logger.info({ userId }, 'Profile updated successfully');
@@ -516,7 +550,10 @@ export function register(app: App, fastify: FastifyInstance) {
       }
 
       app.logger.info({ userId, profileId: profile.id }, 'User profile retrieved successfully');
-      return reply.status(200).send(profile);
+      return reply.status(200).send({
+        ...profile,
+        phone: profile.phone || profile.mobile_number,
+      });
     } catch (error) {
       app.logger.error({ err: error }, 'Failed to get user profile');
       throw error;

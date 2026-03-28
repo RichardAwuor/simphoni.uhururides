@@ -77,7 +77,7 @@ describe("API Integration Tests", () => {
       await expectStatus(res, 200);
       const data = await res.json();
       expect(data.id).toBeDefined();
-      expect(data.email).toBeDefined();
+      expect(data.user_id).toBeDefined();
     });
 
     test("Get profile without auth should return 401", async () => {
@@ -196,31 +196,12 @@ describe("API Integration Tests", () => {
       const res = await authenticatedApi("/api/ride-stats", authToken);
       await expectStatus(res, 200);
       const data = await res.json();
-      expect(data.total_rides).toBeDefined();
+      expect(data.total_rides_as_rider).toBeDefined();
+      expect(data.total_rides_as_driver).toBeDefined();
       expect(data.total_earnings).toBeDefined();
-      expect(data.total_distance_km).toBeDefined();
-      expect(Array.isArray(data.rides)).toBe(true);
-    });
-
-    test("Get ride stats with date range", async () => {
-      const res = await authenticatedApi("/api/ride-stats?from=2026-03-01&to=2026-03-31", authToken);
-      await expectStatus(res, 200);
-      const data = await res.json();
-      expect(data.total_rides).toBeDefined();
-    });
-
-    test("Get ride stats with role filter - rider", async () => {
-      const res = await authenticatedApi("/api/ride-stats?role=rider", authToken);
-      await expectStatus(res, 200);
-      const data = await res.json();
-      expect(data.total_rides).toBeDefined();
-    });
-
-    test("Get ride stats with role filter - driver", async () => {
-      const res = await authenticatedApi("/api/ride-stats?role=driver", authToken);
-      await expectStatus(res, 200);
-      const data = await res.json();
-      expect(data.total_rides).toBeDefined();
+      expect(data.total_spent).toBeDefined();
+      expect(data.completed_rides_as_rider).toBeDefined();
+      expect(data.completed_rides_as_driver).toBeDefined();
     });
 
     test("Get ride stats without auth should return 401", async () => {

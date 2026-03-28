@@ -191,7 +191,7 @@ function RoleBadge({ role }: { role?: 'driver' | 'rider' | null }) {
 }
 
 function ProfileHeaderCard({ profile, authEmail }: { profile: ApiProfile; authEmail?: string }) {
-  const phoneDisplay = profile.phone || null;
+  const phoneDisplay = profile.phone || profile.mobile_number || null;
   const emailDisplay = profile.email || authEmail || null;
   return (
     <View style={CARD_STYLE}>

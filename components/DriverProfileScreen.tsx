@@ -10,13 +10,10 @@ import {
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@/contexts/AuthContext';
-import { useProfile } from '@/contexts/ProfileContext';
 import { apiGet } from '@/utils/api';
-import { COLORS } from '@/constants/colors';
 import { AnimatedPressable } from '@/components/AnimatedPressable';
 import { StatCard } from '@/components/StatCard';
 import { LogOut, Phone, Mail } from 'lucide-react-native';
-import DriverProfileScreen from '@/components/DriverProfileScreen';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -28,10 +25,10 @@ interface ApiProfile {
   email: string;
   role?: 'passenger' | 'driver';
   user_type?: 'passenger' | 'driver';
-  vehicle_make: string | null;
-  vehicle_model: string | null;
-  license_plate: string | null;
-  national_id: string | null;
+  vehicle_make?: string | null;
+  vehicle_model?: string | null;
+  license_plate?: string | null;
+  national_id?: string | null;
   created_at: string;
 }
 
@@ -96,7 +93,7 @@ const CARD_STYLE = {
 } as const;
 
 const STATUS_COLORS: Record<string, string> = {
-  pending: COLORS.primary,
+  pending: '#F5C518',
   bargaining: '#F97316',
   accepted: '#22C55E',
   completed: '#22C55E',
@@ -106,7 +103,7 @@ const STATUS_COLORS: Record<string, string> = {
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
 function StatusBadge({ status }: { status: string }) {
-  const color = STATUS_COLORS[status.toLowerCase()] || COLORS.textTertiary;
+  const color = STATUS_COLORS[status.toLowerCase()] || '#9CA3AF';
   const bgColor = `${color}20`;
   const borderColor = `${color}40`;
   return (
@@ -162,9 +159,7 @@ function AvatarCircle({ name }: { name: string }) {
   );
 }
 
-function RoleBadge({ role }: { role?: 'driver' | 'passenger' | null }) {
-  if (!role) return null;
-  const label = 'Passenger';
+function DriverBadge() {
   return (
     <View
       style={{
@@ -183,85 +178,47 @@ function RoleBadge({ role }: { role?: 'driver' | 'passenger' | null }) {
           fontFamily: 'Nunito_700Bold',
         }}
       >
-        {label}
+        Driver
       </Text>
     </View>
   );
 }
 
-function ProfileHeaderCard({ profile, authEmail }: { profile: ApiProfile; authEmail?: string }) {
-  const phoneDisplay = profile.phone || profile.mobile_number || null;
-  const emailDisplay = profile.email || authEmail || null;
-  const nameDisplay = profile.full_name || emailDisplay?.split('@')[0] || '—';
-  const rawFirstName = nameDisplay.trim().split(/\s+/)[0] || nameDisplay;
-  const firstNameDisplay = rawFirstName.charAt(0).toUpperCase() + rawFirstName.slice(1).toLowerCase();
-  const restOfName = nameDisplay.trim().split(/\s+/).slice(1).join(' ');
+function VehicleRow({ label, value }: { label: string; value?: string | null }) {
+  const displayValue = value && String(value).trim() ? String(value) : null;
   return (
-    <View style={CARD_STYLE}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
-        <AvatarCircle name={nameDisplay} />
-        <View style={{ flex: 1, gap: 6 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap' }}>
-            <Text
-              style={{
-                fontSize: 20,
-                fontWeight: '700',
-                color: '#1A1A1A',
-                fontFamily: 'Nunito_700Bold',
-              }}
-            >
-              {firstNameDisplay}
-            </Text>
-            {restOfName ? (
-              <Text
-                style={{
-                  fontSize: 20,
-                  fontWeight: '700',
-                  color: '#1A1A1A',
-                  fontFamily: 'Nunito_700Bold',
-                }}
-              >
-                {' '}{restOfName}
-              </Text>
-            ) : null}
-          </View>
-          <RoleBadge role={profile.role} />
-        </View>
-      </View>
-      <View
+    <View
+      style={{
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingVertical: 10,
+        borderBottomWidth: 1,
+        borderBottomColor: 'rgba(0,0,0,0.05)',
+      }}
+    >
+      <Text
         style={{
-          marginTop: 16,
-          borderTopWidth: 1,
-          borderTopColor: 'rgba(0,0,0,0.06)',
-          paddingTop: 14,
-          gap: 10,
+          fontSize: 13,
+          color: '#6B7280',
+          fontFamily: 'Nunito_400Regular',
+          flex: 1,
         }}
       >
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-          <Phone size={16} color="#F5C518" />
-          <Text
-            style={{
-              fontSize: 14,
-              color: phoneDisplay ? '#1A1A1A' : '#AAAAAA',
-              fontFamily: 'Nunito_400Regular',
-            }}
-          >
-            {phoneDisplay ?? 'Not set'}
-          </Text>
-        </View>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-          <Mail size={16} color="#F5C518" />
-          <Text
-            style={{
-              fontSize: 14,
-              color: emailDisplay ? '#1A1A1A' : '#AAAAAA',
-              fontFamily: 'Nunito_400Regular',
-            }}
-          >
-            {emailDisplay ?? 'Not set'}
-          </Text>
-        </View>
-      </View>
+        {label}
+      </Text>
+      <Text
+        style={{
+          fontSize: 14,
+          fontWeight: '600',
+          color: displayValue ? '#1A1A1A' : '#AAAAAA',
+          fontFamily: 'Nunito_600SemiBold',
+          flex: 1,
+          textAlign: 'right',
+        }}
+      >
+        {displayValue ?? 'Not set'}
+      </Text>
     </View>
   );
 }
@@ -284,12 +241,12 @@ function DateRangePicker({
   const toLabel = formatDate(toDate.toISOString());
 
   const handleFromPress = () => {
-    console.log('[DateRangePicker] From date picker opened');
+    console.log('[DriverProfile] From date picker opened');
     setShowFrom(true);
   };
 
   const handleToPress = () => {
-    console.log('[DateRangePicker] To date picker opened');
+    console.log('[DriverProfile] To date picker opened');
     setShowTo(true);
   };
 
@@ -343,7 +300,7 @@ function DateRangePicker({
             onChange={(_: any, date?: Date) => {
               setShowFrom(Platform.OS === 'ios');
               if (date) {
-                console.log('[DateRangePicker] From date changed:', toYMD(date));
+                console.log('[DriverProfile] From date changed:', toYMD(date));
                 onFromChange(date);
               }
             }}
@@ -400,7 +357,7 @@ function DateRangePicker({
             onChange={(_: any, date?: Date) => {
               setShowTo(Platform.OS === 'ios');
               if (date) {
-                console.log('[DateRangePicker] To date changed:', toYMD(date));
+                console.log('[DriverProfile] To date changed:', toYMD(date));
                 onToChange(date);
               }
             }}
@@ -497,7 +454,7 @@ function SignOutButton() {
   const [signingOut, setSigningOut] = useState(false);
 
   const handleSignOut = async () => {
-    console.log('[ProfileScreen] Sign out pressed');
+    console.log('[DriverProfile] Sign out pressed');
     setSigningOut(true);
     try {
       await signOut();
@@ -545,9 +502,14 @@ function SignOutButton() {
   );
 }
 
-// ─── Rider Profile ────────────────────────────────────────────────────────────
+// ─── Main Component ───────────────────────────────────────────────────────────
 
-function RiderProfile({ profile, authEmail }: { profile: ApiProfile; authEmail?: string }) {
+interface DriverProfileScreenProps {
+  profile: ApiProfile;
+  authEmail?: string;
+}
+
+export default function DriverProfileScreen({ profile, authEmail }: DriverProfileScreenProps) {
   const insets = useSafeAreaInsets();
 
   const defaultTo = new Date();
@@ -561,17 +523,17 @@ function RiderProfile({ profile, authEmail }: { profile: ApiProfile; authEmail?:
   const [statsError, setStatsError] = useState<string | null>(null);
 
   const fetchStats = useCallback(async (from: Date, to: Date) => {
-    console.log('[RiderProfile] Fetching ride-stats from:', toYMD(from), 'to:', toYMD(to));
+    console.log('[DriverProfile] Fetching ride-stats from:', toYMD(from), 'to:', toYMD(to));
     setStatsLoading(true);
     setStatsError(null);
     try {
       const data = await apiGet<RideStats>(
-        `/api/ride-stats?from=${toYMD(from)}&to=${toYMD(to)}&role=passenger`
+        `/api/ride-stats?role=driver&from=${toYMD(from)}&to=${toYMD(to)}`
       );
-      console.log('[RiderProfile] ride-stats response:', data);
+      console.log('[DriverProfile] ride-stats response:', data);
       setStats(data);
     } catch (e: any) {
-      console.error('[RiderProfile] ride-stats fetch failed:', e);
+      console.error('[DriverProfile] ride-stats fetch failed:', e);
       setStatsError(e?.message || 'Failed to load stats');
     } finally {
       setStatsLoading(false);
@@ -592,11 +554,19 @@ function RiderProfile({ profile, authEmail }: { profile: ApiProfile; authEmail?:
     fetchStats(fromDate, d);
   };
 
+  // Derived display values
+  const phoneDisplay = profile.phone || profile.mobile_number || null;
+  const emailDisplay = profile.email || authEmail || null;
+  const nameDisplay = profile.full_name || emailDisplay?.split('@')[0] || '—';
+  const rawFirstName = nameDisplay.trim().split(/\s+/)[0] || nameDisplay;
+  const firstNameDisplay = rawFirstName.charAt(0).toUpperCase() + rawFirstName.slice(1).toLowerCase();
+  const restOfName = nameDisplay.trim().split(/\s+/).slice(1).join(' ');
+
   const totalRidesDisplay = stats ? formatNumber(stats.total_rides) : '—';
+  const earningsDisplay = stats ? formatNumber(Number(stats.total_earnings || 0)) : '—';
   const distanceDisplay = stats
-    ? `${Number(stats.total_distance_km || 0).toFixed(1)} km`
+    ? `${Number(stats.total_distance_km || 0).toFixed(1)}`
     : '—';
-  const memberSince = formatDate(profile.created_at);
 
   return (
     <ScrollView
@@ -617,9 +587,94 @@ function RiderProfile({ profile, authEmail }: { profile: ApiProfile; authEmail?:
         </Text>
       </View>
 
-      <ProfileHeaderCard profile={profile} authEmail={authEmail} />
+      {/* Profile header card */}
+      <View style={CARD_STYLE}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
+          <AvatarCircle name={nameDisplay} />
+          <View style={{ flex: 1, gap: 6 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap' }}>
+              <Text
+                style={{
+                  fontSize: 20,
+                  fontWeight: '700',
+                  color: '#1A1A1A',
+                  fontFamily: 'Nunito_700Bold',
+                }}
+              >
+                {firstNameDisplay}
+              </Text>
+              {restOfName ? (
+                <Text
+                  style={{
+                    fontSize: 20,
+                    fontWeight: '700',
+                    color: '#1A1A1A',
+                    fontFamily: 'Nunito_700Bold',
+                  }}
+                >
+                  {' '}{restOfName}
+                </Text>
+              ) : null}
+            </View>
+            <DriverBadge />
+          </View>
+        </View>
+        <View
+          style={{
+            marginTop: 16,
+            borderTopWidth: 1,
+            borderTopColor: 'rgba(0,0,0,0.06)',
+            paddingTop: 14,
+            gap: 10,
+          }}
+        >
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <Phone size={16} color="#F5C518" />
+            <Text
+              style={{
+                fontSize: 14,
+                color: phoneDisplay ? '#1A1A1A' : '#AAAAAA',
+                fontFamily: 'Nunito_400Regular',
+              }}
+            >
+              {phoneDisplay ?? 'Not set'}
+            </Text>
+          </View>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <Mail size={16} color="#F5C518" />
+            <Text
+              style={{
+                fontSize: 14,
+                color: emailDisplay ? '#1A1A1A' : '#AAAAAA',
+                fontFamily: 'Nunito_400Regular',
+              }}
+            >
+              {emailDisplay ?? 'Not set'}
+            </Text>
+          </View>
+        </View>
+      </View>
 
-      {/* My Rides */}
+      {/* Vehicle Details card */}
+      <View style={CARD_STYLE}>
+        <Text
+          style={{
+            fontSize: 16,
+            fontWeight: '700',
+            color: '#1A1A1A',
+            fontFamily: 'Nunito_700Bold',
+            marginBottom: 4,
+          }}
+        >
+          Vehicle Details
+        </Text>
+        <VehicleRow label="Make" value={profile.vehicle_make} />
+        <VehicleRow label="Model" value={profile.vehicle_model} />
+        <VehicleRow label="License Plate" value={profile.license_plate} />
+        <VehicleRow label="National ID" value={profile.national_id} />
+      </View>
+
+      {/* My Earnings card */}
       <View style={CARD_STYLE}>
         <Text
           style={{
@@ -630,7 +685,7 @@ function RiderProfile({ profile, authEmail }: { profile: ApiProfile; authEmail?:
             marginBottom: 14,
           }}
         >
-          My Rides
+          My Earnings
         </Text>
 
         <DateRangePicker
@@ -646,12 +701,19 @@ function RiderProfile({ profile, authEmail }: { profile: ApiProfile; authEmail?:
           </View>
         ) : statsError ? (
           <View style={{ alignItems: 'center', paddingVertical: 20, gap: 10 }}>
-            <Text style={{ fontSize: 13, color: '#EF4444', fontFamily: 'Nunito_400Regular', textAlign: 'center' }}>
+            <Text
+              style={{
+                fontSize: 13,
+                color: '#EF4444',
+                fontFamily: 'Nunito_400Regular',
+                textAlign: 'center',
+              }}
+            >
               {statsError}
             </Text>
             <TouchableOpacity
               onPress={() => {
-                console.log('[RiderProfile] Retry stats fetch pressed');
+                console.log('[DriverProfile] Retry stats fetch pressed');
                 fetchStats(fromDate, toDate);
               }}
               style={{
@@ -661,38 +723,43 @@ function RiderProfile({ profile, authEmail }: { profile: ApiProfile; authEmail?:
                 paddingVertical: 8,
               }}
             >
-              <Text style={{ fontSize: 13, fontWeight: '700', color: '#FFFFFF', fontFamily: 'Nunito_700Bold' }}>
+              <Text
+                style={{
+                  fontSize: 13,
+                  fontWeight: '700',
+                  color: '#FFFFFF',
+                  fontFamily: 'Nunito_700Bold',
+                }}
+              >
                 Retry
               </Text>
             </TouchableOpacity>
           </View>
         ) : (
           <>
-            <View style={{ flexDirection: 'row', gap: 10, marginBottom: 12 }}>
+            <View style={{ flexDirection: 'row', gap: 8, marginBottom: 12 }}>
               <View style={{ flex: 1 }}>
                 <StatCard icon="🚗" label="Rides" value={totalRidesDisplay} />
               </View>
               <View style={{ flex: 1 }}>
-                <StatCard icon="📍" label="Distance" value={distanceDisplay} />
+                <StatCard icon="💰" label="Earnings (KES)" value={earningsDisplay} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <StatCard icon="📍" label="Distance (km)" value={distanceDisplay} />
               </View>
             </View>
-
-            <Text
-              style={{
-                fontSize: 12,
-                color: '#888',
-                fontFamily: 'Nunito_400Regular',
-                marginBottom: 16,
-              }}
-            >
-              Member since {memberSince}
-            </Text>
 
             {stats && stats.rides && stats.rides.length > 0 ? (
               stats.rides.map((ride) => <RideHistoryItem key={ride.id} ride={ride} />)
             ) : (
               <View style={{ alignItems: 'center', paddingVertical: 20 }}>
-                <Text style={{ fontSize: 14, color: '#888', fontFamily: 'Nunito_400Regular' }}>
+                <Text
+                  style={{
+                    fontSize: 14,
+                    color: '#888',
+                    fontFamily: 'Nunito_400Regular',
+                  }}
+                >
                   No rides in this period
                 </Text>
               </View>
@@ -704,130 +771,4 @@ function RiderProfile({ profile, authEmail }: { profile: ApiProfile; authEmail?:
       <SignOutButton />
     </ScrollView>
   );
-}
-
-// ─── Main export ──────────────────────────────────────────────────────────────
-
-export default function ProfileScreen() {
-  const { user } = useAuth();
-  const { profile: ctxProfile, refreshProfile } = useProfile();
-  const [profile, setProfile] = useState<ApiProfile | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const fetchProfile = useCallback(async () => {
-    console.log('[ProfileScreen] Fetching /api/profiles/me');
-    setLoading(true);
-    setError(null);
-    try {
-      const raw = await apiGet<any>('/api/profiles/me');
-      console.log('[ProfileScreen] Profile raw response — phone:', raw.phone, 'mobile_number:', raw.mobile_number, 'name:', raw.name, 'full_name:', raw.full_name);
-      const normalizedName: string = raw.full_name || raw.name ||
-        ((raw.first_name || raw.last_name) ? `${raw.first_name || ''} ${raw.last_name || ''}`.trim() : '');
-      const normalizedPhone: string = raw.phone || raw.mobile_number || raw.phone_number || '';
-      const rawRole = ((raw.user_type ?? raw.role ?? raw.user_role ?? '') as string).toLowerCase().trim();
-      const normalizedRole: 'driver' | 'passenger' =
-        rawRole === 'driver' ? 'driver' : 'passenger';
-      const data: ApiProfile = {
-        ...raw,
-        full_name: normalizedName,
-        role: normalizedRole,
-        user_type: normalizedRole,
-        phone: normalizedPhone,
-        mobile_number: normalizedPhone,
-      };
-      console.log('[ProfileScreen] Profile normalized — full_name:', data.full_name, 'phone:', data.phone);
-      setProfile(data);
-    } catch (e: any) {
-      console.error('[ProfileScreen] Profile fetch failed:', e);
-      if (ctxProfile) {
-        console.log('[ProfileScreen] Falling back to ctxProfile after fetch error');
-        const fallback: ApiProfile = {
-          id: (ctxProfile as any).id ?? '',
-          full_name: (ctxProfile as any).full_name || (ctxProfile as any).name || '',
-          phone: (ctxProfile as any).phone || (ctxProfile as any).mobile_number || '',
-          mobile_number: (ctxProfile as any).mobile_number || (ctxProfile as any).phone || '',
-          email: (ctxProfile as any).email || '',
-          role: 'passenger',
-          user_type: 'passenger',
-          vehicle_make: null,
-          vehicle_model: null,
-          license_plate: null,
-          national_id: null,
-          created_at: (ctxProfile as any).created_at ?? new Date().toISOString(),
-        };
-        setProfile(fallback);
-      } else {
-        setError('Could not load profile. Tap Retry to try again.');
-      }
-    } finally {
-      setLoading(false);
-    }
-  }, [ctxProfile]);
-
-  useEffect(() => {
-    if (user) {
-      fetchProfile();
-    } else {
-      setLoading(false);
-    }
-  }, [user, ctxProfile]);
-
-  if (loading) {
-    return (
-      <View
-        style={{
-          flex: 1,
-          backgroundColor: '#FAF7F0',
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-      >
-        <ActivityIndicator size="large" color="#F5A623" />
-      </View>
-    );
-  }
-
-  if (error || !profile) {
-    return (
-      <View
-        style={{
-          flex: 1,
-          backgroundColor: '#FAF7F0',
-          alignItems: 'center',
-          justifyContent: 'center',
-          paddingHorizontal: 32,
-          gap: 16,
-        }}
-      >
-        <Text style={{ fontSize: 16, color: '#EF4444', fontFamily: 'Nunito_400Regular', textAlign: 'center' }}>
-          {error || 'Could not load profile'}
-        </Text>
-        <TouchableOpacity
-          onPress={() => {
-            console.log('[ProfileScreen] Retry profile fetch pressed');
-            refreshProfile();
-            fetchProfile();
-          }}
-          style={{
-            backgroundColor: '#F5A623',
-            borderRadius: 12,
-            paddingHorizontal: 28,
-            paddingVertical: 12,
-          }}
-        >
-          <Text style={{ fontSize: 15, fontWeight: '700', color: '#FFFFFF', fontFamily: 'Nunito_700Bold' }}>
-            Retry
-          </Text>
-        </TouchableOpacity>
-      </View>
-    );
-  }
-
-  const authEmail = user?.email ?? undefined;
-  const isDriver = profile.role === 'driver' || profile.user_type === 'driver';
-  if (isDriver) {
-    return <DriverProfileScreen profile={profile} authEmail={authEmail} />;
-  }
-  return <RiderProfile profile={profile} authEmail={authEmail} />;
 }

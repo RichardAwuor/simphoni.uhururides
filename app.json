@@ -1,8 +1,8 @@
 {
   "expo": {
     "name": "uhuru-east-africa-is",
-    "slug": "uhuru-east-africa-is",
-    "version": "1.0.18",
+    "slug": "uhuru-east-africa-is-dkzvhr",
+    "version": "1.0.19",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
@@ -24,7 +24,7 @@
         "backgroundColor": "#F5C518"
       },
       "package": "com.uhururides.app",
-      "versionCode": 19
+      "versionCode": 20
     },
     "web": {
       "favicon": "./assets/images/b5bc66af-b6dd-4cb6-821a-39afe88833d9.png",
@@ -42,7 +42,7 @@
     },
     "extra": {
       "router": {},
-      "backendUrl": "https://jkuc6rc3hdmejmvhguegebgqmhj4q7zn.app.specular.dev"
+      "backendUrl": "https://prod-proj-svsjpvkxpdkrhmukzq6cp-liwg5h36mq-ey.a.run.app"
     }
   }
 }

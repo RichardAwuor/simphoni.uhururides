@@ -145,6 +145,7 @@ function BargainModal({ visible, offeredPrice, currency, loading, onConfirm, onC
 
   const counterPrice = Number(input) || 0;
   const counterPriceText = counterPrice > 0 ? formatPrice(counterPrice, currency) : '';
+  const offeredPriceText = formatPrice(offeredPrice, currency);
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={handleCancel}>
@@ -155,8 +156,9 @@ function BargainModal({ visible, offeredPrice, currency, loading, onConfirm, onC
         <View style={styles.bargainModalCard}>
           <Text style={styles.bargainModalTitle}>Make a Counter Offer</Text>
           <Text style={styles.bargainModalSubtitle}>
-            Rider offered: {formatPrice(offeredPrice, currency)}
+            Rider offered:
           </Text>
+          <Text style={styles.bargainModalSubtitle}>{offeredPriceText}</Text>
           <View style={styles.bargainInputWrapper}>
             <Text style={styles.bargainCurrencyLabel}>{currency}</Text>
             <TextInput
@@ -194,9 +196,9 @@ function BargainModal({ visible, offeredPrice, currency, loading, onConfirm, onC
   );
 }
 
-// ─── Driver Ride Card ─────────────────────────────────────────────────────────
+// ─── Drive Request Card ───────────────────────────────────────────────────────
 
-interface DriverCardProps {
+interface DriveRequestCardProps {
   request: RideRequest;
   onAccept: (id: string) => void;
   onIgnore: (id: string) => void;
@@ -205,7 +207,7 @@ interface DriverCardProps {
   actionLoading: string | null;
 }
 
-function DriverRideCard({ request, onAccept, onIgnore, onReject, onBargain, actionLoading }: DriverCardProps) {
+function DriveRequestCard({ request, onAccept, onIgnore, onReject, onBargain, actionLoading }: DriveRequestCardProps) {
   const opacity = useRef(new Animated.Value(0)).current;
   const translateY = useRef(new Animated.Value(20)).current;
   const [bargainVisible, setBargainVisible] = useState(false);
@@ -229,7 +231,7 @@ function DriverRideCard({ request, onAccept, onIgnore, onReject, onBargain, acti
   const regNumber = request.registration_number;
 
   const handleBargainConfirm = async (counterPrice: number) => {
-    console.log('[DriverRideCard] Bargain confirm — id:', request.id, 'counter_price:', counterPrice);
+    console.log('[DriveRequestCard] Bargain confirm — id:', request.id, 'counter_price:', counterPrice);
     setBargainLoading(true);
     try {
       await onBargain(request.id, counterPrice);
@@ -304,7 +306,7 @@ function DriverRideCard({ request, onAccept, onIgnore, onReject, onBargain, acti
         <View style={styles.actionRow}>
           <AnimatedPressable
             onPress={() => {
-              console.log('[DriverRideCard] Accept pressed — id:', request.id);
+              console.log('[DriveRequestCard] Accept pressed — id:', request.id);
               onAccept(request.id);
             }}
             disabled={isLoading}
@@ -319,7 +321,7 @@ function DriverRideCard({ request, onAccept, onIgnore, onReject, onBargain, acti
 
           <AnimatedPressable
             onPress={() => {
-              console.log('[DriverRideCard] Bargain pressed — id:', request.id);
+              console.log('[DriveRequestCard] Bargain pressed — id:', request.id);
               setBargainVisible(true);
             }}
             disabled={isLoading}
@@ -330,7 +332,7 @@ function DriverRideCard({ request, onAccept, onIgnore, onReject, onBargain, acti
 
           <AnimatedPressable
             onPress={() => {
-              console.log('[DriverRideCard] Ignore pressed — id:', request.id);
+              console.log('[DriveRequestCard] Ignore pressed — id:', request.id);
               onIgnore(request.id);
             }}
             disabled={isLoading}
@@ -341,7 +343,7 @@ function DriverRideCard({ request, onAccept, onIgnore, onReject, onBargain, acti
 
           <AnimatedPressable
             onPress={() => {
-              console.log('[DriverRideCard] Reject pressed — id:', request.id);
+              console.log('[DriveRequestCard] Reject pressed — id:', request.id);
               onReject(request.id);
             }}
             disabled={isLoading}
@@ -364,9 +366,9 @@ function DriverRideCard({ request, onAccept, onIgnore, onReject, onBargain, acti
   );
 }
 
-// ─── Driver Screen ────────────────────────────────────────────────────────────
+// ─── Drive Screen (for drivers) ───────────────────────────────────────────────
 
-function DriverRidesScreen() {
+function DriveScreen() {
   const insets = useSafeAreaInsets();
   const [requests, setRequests] = useState<RideRequest[]>([]);
   const [ignoredIds, setIgnoredIds] = useState<Set<string>>(new Set());
@@ -379,7 +381,7 @@ function DriverRidesScreen() {
   const fetchRequests = useCallback(async (silent = false) => {
     if (muted) return;
     if (!silent) setLoading(true);
-    console.log('[DriverRidesScreen] GET /api/ride-requests?status=pending&role=driver');
+    console.log('[DriveScreen] GET /api/ride-requests?status=pending&role=driver');
     try {
       const data = await apiGet<{ ride_requests?: RideRequest[]; data?: RideRequest[] } | RideRequest[]>(
         '/api/ride-requests?status=pending&role=driver'
@@ -392,24 +394,23 @@ function DriverRidesScreen() {
       } else if (Array.isArray((data as any)?.data)) {
         list = (data as any).data;
       }
-      console.log('[DriverRidesScreen] Fetched', list.length, 'pending requests');
+      console.log('[DriveScreen] Fetched', list.length, 'pending requests');
       setRequests(list);
     } catch (e) {
-      console.error('[DriverRidesScreen] Failed to fetch requests:', e);
+      console.error('[DriveScreen] Failed to fetch requests:', e);
     } finally {
       setLoading(false);
     }
   }, [muted]);
 
-  // Start/stop polling based on muted state
   useEffect(() => {
     if (muted) {
-      console.log('[DriverRidesScreen] Muted — stopping poll');
+      console.log('[DriveScreen] Muted — stopping poll');
       if (intervalRef.current) clearInterval(intervalRef.current);
       setLoading(false);
       return;
     }
-    console.log('[DriverRidesScreen] Unmuted — starting poll every', POLL_INTERVAL, 'ms');
+    console.log('[DriveScreen] Unmuted — starting poll every', POLL_INTERVAL, 'ms');
     fetchRequests();
     intervalRef.current = setInterval(() => fetchRequests(true), POLL_INTERVAL);
     return () => {
@@ -419,57 +420,57 @@ function DriverRidesScreen() {
 
   const handleToggleMute = () => {
     const next = !muted;
-    console.log('[DriverRidesScreen] Mute toggle pressed — switching to:', next ? 'muted' : 'unmuted');
+    console.log('[DriveScreen] Mute toggle pressed — switching to:', next ? 'muted' : 'unmuted');
     setMuted(next);
     if (next) setRequests([]);
   };
 
   const handleAccept = async (id: string) => {
-    console.log('[DriverRidesScreen] PATCH /api/ride-requests/' + id + ' status=accepted');
+    console.log('[DriveScreen] PATCH /api/ride-requests/' + id + ' status=accepted');
     setActionLoading(id);
     try {
       const data = await apiPatch<{ ride_request?: RideRequest; rider_phone?: string; rider_name?: string }>(
         `/api/ride-requests/${id}`,
         { status: 'accepted' }
       );
-      console.log('[DriverRidesScreen] Accept response:', data);
+      console.log('[DriveScreen] Accept response:', data);
       const req = requests.find((r) => r.id === id);
       const riderName = (data as any)?.rider_name ?? req?.rider_first_name ?? req?.rider_name ?? 'Rider';
       const riderPhone = (data as any)?.rider_phone ?? req?.rider_phone ?? '';
       setAcceptedRide({ rider_name: riderName, rider_phone: String(riderPhone) });
       setRequests((prev) => prev.filter((r) => r.id !== id));
     } catch (e) {
-      console.error('[DriverRidesScreen] Accept failed:', e);
+      console.error('[DriveScreen] Accept failed:', e);
     } finally {
       setActionLoading(null);
     }
   };
 
   const handleIgnore = (id: string) => {
-    console.log('[DriverRidesScreen] Ignore — dismissing locally, id:', id);
+    console.log('[DriveScreen] Ignore — dismissing locally, id:', id);
     setIgnoredIds((prev) => new Set([...prev, id]));
     setRequests((prev) => prev.filter((r) => r.id !== id));
   };
 
   const handleReject = async (id: string) => {
-    console.log('[DriverRidesScreen] PATCH /api/ride-requests/' + id + ' status=rejected');
+    console.log('[DriveScreen] PATCH /api/ride-requests/' + id + ' status=rejected');
     setRequests((prev) => prev.filter((r) => r.id !== id));
     try {
       await apiPatch(`/api/ride-requests/${id}`, { status: 'rejected' });
-      console.log('[DriverRidesScreen] Reject success — id:', id);
+      console.log('[DriveScreen] Reject success — id:', id);
     } catch (e) {
-      console.error('[DriverRidesScreen] Reject failed:', e);
+      console.error('[DriveScreen] Reject failed:', e);
     }
   };
 
   const handleBargain = async (id: string, counterPrice: number) => {
-    console.log('[DriverRidesScreen] PATCH /api/ride-requests/' + id + ' status=bargaining counter_price:', counterPrice);
+    console.log('[DriveScreen] PATCH /api/ride-requests/' + id + ' status=bargaining counter_price:', counterPrice);
     try {
       await apiPatch(`/api/ride-requests/${id}`, { status: 'bargaining', counter_price: counterPrice });
-      console.log('[DriverRidesScreen] Bargain sent — id:', id, 'counter_price:', counterPrice);
+      console.log('[DriveScreen] Bargain sent — id:', id, 'counter_price:', counterPrice);
       setRequests((prev) => prev.filter((r) => r.id !== id));
     } catch (e) {
-      console.error('[DriverRidesScreen] Bargain failed:', e);
+      console.error('[DriveScreen] Bargain failed:', e);
       throw e;
     }
   };
@@ -481,7 +482,7 @@ function DriverRidesScreen() {
     <View style={styles.container}>
       <Stack.Screen
         options={{
-          title: 'Drive',
+          title: 'Accept requests',
           headerShown: true,
           headerStyle: { backgroundColor: PRIMARY },
           headerTitleStyle: {
@@ -502,7 +503,7 @@ function DriverRidesScreen() {
         <Switch
           value={muted}
           onValueChange={() => {
-            console.log('[DriverRidesScreen] Mute switch toggled');
+            console.log('[DriveScreen] Mute switch toggled');
             handleToggleMute();
           }}
           trackColor={{ false: '#22C55E', true: '#9E9E9E' }}
@@ -529,7 +530,7 @@ function DriverRidesScreen() {
           </View>
         ) : !muted && visibleRequests.length > 0 ? (
           visibleRequests.map((req) => (
-            <DriverRideCard
+            <DriveRequestCard
               key={req.id}
               request={req}
               onAccept={handleAccept}
@@ -572,29 +573,24 @@ export default function RidesScreen() {
 
   if (profileLoading) {
     return (
-      <View style={styles.container}>
-        <Stack.Screen options={{ title: 'Rides', headerShown: true, headerStyle: { backgroundColor: BG } }} />
-        <View style={styles.centered}>
-          <ActivityIndicator size="large" color={PRIMARY} />
-        </View>
+      <View style={{ flex: 1, backgroundColor: BG, alignItems: 'center', justifyContent: 'center' }}>
+        <Stack.Screen options={{ title: 'Loading...', headerShown: true }} />
+        <ActivityIndicator size="large" color={PRIMARY} />
       </View>
     );
   }
 
-  const normalizeRole = (val: any) => (typeof val === 'string' ? val.toLowerCase().trim() : '');
   const profileAny = profile as any;
+  const norm = (v: any) => (typeof v === 'string' ? v.toLowerCase().trim() : '');
   const isDriver =
-    normalizeRole(profileAny?.user_type).includes('driver') ||
-    normalizeRole(profileAny?.role).includes('driver') ||
-    normalizeRole(profileAny?.user_role).includes('driver') ||
-    Object.values(profileAny ?? {}).some(
-      (v) => typeof v === 'string' && v.toLowerCase().includes('driver')
-    );
-  console.log('[RidesScreen] profile keys:', JSON.stringify(profileAny), 'isDriver:', isDriver);
+    norm(profileAny?.user_type).includes('driver') ||
+    norm(profileAny?.role).includes('driver') ||
+    norm(profileAny?.user_role).includes('driver') ||
+    Object.values(profileAny ?? {}).some((v) => typeof v === 'string' && v.toLowerCase().includes('driver'));
 
-  if (isDriver) {
-    return <DriverRidesScreen />;
-  }
+  console.log('[RidesScreen] profile:', JSON.stringify(profileAny), 'isDriver:', isDriver);
+
+  if (isDriver) return <DriveScreen />;
 
   return (
     <>
@@ -897,7 +893,6 @@ const styles = StyleSheet.create({
   btnDisabled: {
     opacity: 0.4,
   },
-  // Bargain modal
   bargainModalCard: {
     backgroundColor: '#FFFFFF',
     borderRadius: 20,
@@ -988,7 +983,6 @@ const styles = StyleSheet.create({
     color: TEXT,
     fontFamily: 'Nunito_700Bold',
   },
-  // Accept modal
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',

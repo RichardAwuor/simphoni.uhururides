@@ -58,6 +58,7 @@ interface RideRequestResponse {
   offered_price?: number;
   currency?: string;
   final_price?: number | null;
+  registration_number?: string;
 }
 
 interface BargainAttempt {
@@ -751,6 +752,12 @@ export default function RiderRequestScreen() {
               <Text style={s.summaryLabel}>Vehicle</Text>
               <Text style={s.summaryValue}>{vehicleLabel}</Text>
             </View>
+            {rideData?.registration_number ? (
+              <View style={s.summaryRow}>
+                <Text style={s.summaryLabel}>Registration</Text>
+                <Text style={s.summaryValue}>{rideData.registration_number}</Text>
+              </View>
+            ) : null}
             <View style={s.summaryDivider} />
             <View style={s.summaryRow}>
               <MapPin size={13} color={PRIMARY} />

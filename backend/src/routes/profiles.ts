@@ -142,7 +142,7 @@ export function register(app: App, fastify: FastifyInstance) {
       phone: profile.phone || profile.mobile_number || null,
       mobile_number: profile.mobile_number || null,
       role: normalizedRole,
-      user_type: profile.user_type,
+      user_type: normalizedRole,
       country: profile.country || null,
       language: profile.language || null,
       profile_picture_url: profile.profile_picture_url || null,
@@ -253,9 +253,11 @@ export function register(app: App, fastify: FastifyInstance) {
         const normalized = normalizeRole(role);
         if (normalized) {
           userType = normalized;
-          roleValue = normalized;
         }
       }
+
+      // Always sync role with user_type to keep both columns consistent
+      roleValue = userType;
 
       const existingProfile = await app.db.query.profiles.findFirst({
         where: eq(schema.profiles.user_id, session.user.id),
@@ -271,7 +273,7 @@ export function register(app: App, fastify: FastifyInstance) {
         country: country || 'kenya' as const,
         language: normalizeLanguage(language),
         resident_district: '',
-        role: roleValue || null,
+        role: roleValue,
         full_name: fullName || null,
       };
 
@@ -306,6 +308,7 @@ export function register(app: App, fastify: FastifyInstance) {
       return reply.send({
         ...profile,
         email: userRecord?.email || '',
+        user_type: normalizedRole,
         role: normalizedRole,
         phone: profile.phone || profile.mobile_number,
       });
@@ -445,6 +448,7 @@ export function register(app: App, fastify: FastifyInstance) {
       return reply.send({
         ...updated,
         email: userRecord?.email || '',
+        user_type: normalizedRole,
         role: normalizedRole,
         phone: updated.phone || updated.mobile_number,
       });
@@ -604,6 +608,7 @@ export function register(app: App, fastify: FastifyInstance) {
 
         const response = {
           ...updated,
+          user_type: normalizedRole,
           role: normalizedRole,
           name: user?.name,
           email: user?.email,
@@ -745,6 +750,7 @@ export function register(app: App, fastify: FastifyInstance) {
       app.logger.info({ userId, profileId: profile.id, role: normalizedRole }, 'User profile retrieved successfully');
       return reply.status(200).send({
         ...profile,
+        user_type: normalizedRole,
         role: normalizedRole,
         phone: profile.phone || profile.mobile_number,
       });

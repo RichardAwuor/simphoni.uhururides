@@ -1002,6 +1002,15 @@ describe("API Integration Tests", () => {
       expect(data.muted).toBe(false);
     });
 
+    test("Update mute with missing required field should fail", async () => {
+      const res = await authenticatedApi("/api/driver/mute", muteTestToken, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+      await expectStatus(res, 400);
+    });
+
     test("Update mute without auth should return 401", async () => {
       const res = await api("/api/driver/mute", {
         method: "POST",

@@ -17,8 +17,8 @@ describe("API Integration Tests", () => {
 
   // Profile endpoints
   describe("Profile Management", () => {
-    test("Create user profile", async () => {
-      const res = await authenticatedApi("/api/profiles/me", authToken, {
+    test("Upsert user profile", async () => {
+      const res = await authenticatedApi("/api/profiles", authToken, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -46,7 +46,7 @@ describe("API Integration Tests", () => {
 
     test("Update user profile", async () => {
       const res = await authenticatedApi("/api/profiles/me", authToken, {
-        method: "PUT",
+        method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           first_name: "Updated",
@@ -57,13 +57,13 @@ describe("API Integration Tests", () => {
       expect(data.first_name).toBe("Updated");
     });
 
-    test("Create profile with missing required fields should fail", async () => {
-      const res = await authenticatedApi("/api/profiles/me", authToken, {
+    test("Upsert profile with missing optional fields should succeed", async () => {
+      const res = await authenticatedApi("/api/profiles", authToken, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           full_name: "Test User",
-          // missing: phone, country, language, user_type - but all fields are optional
+          // all fields are optional
         }),
       });
       await expectStatus(res, 200);
@@ -138,13 +138,13 @@ describe("API Integration Tests", () => {
       expect(data.car_make).toBe("Toyota");
     });
 
-    test("Create driver details with missing required fields should fail", async () => {
+    test("Create driver details with missing optional fields should succeed", async () => {
       const res = await authenticatedApi("/api/driver/details", authToken, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           vehicleMake: "Toyota",
-          // missing: licensePlate, licenseNumber - but all fields are optional
+          // all fields are optional
         }),
       });
       await expectStatus(res, 200);
@@ -479,7 +479,7 @@ describe("API Integration Tests", () => {
       const { token, user } = await signUpTestUser();
       riderToken = token;
       // Create rider profile (not driver)
-      const res = await authenticatedApi("/api/profiles/me", riderToken, {
+      const res = await authenticatedApi("/api/profiles", riderToken, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

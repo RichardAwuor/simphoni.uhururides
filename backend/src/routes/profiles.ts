@@ -39,6 +39,27 @@ function normalizeLanguage(lang: string | undefined): 'english' | 'swahili' | 'l
   return 'english';
 }
 
+// Helper function to normalize user_type and role fields
+// Uses user_type as primary source, falls back to role, defaults to empty string
+function normalizeUserTypeField(user_type: string | null | undefined, role: string | null | undefined): string {
+  // Primary source: user_type
+  if (user_type) {
+    const normalized = user_type.toLowerCase();
+    if (normalized.includes('driver')) return 'driver';
+    if (normalized.includes('rider')) return 'rider';
+  }
+
+  // Fallback: role
+  if (role) {
+    const normalized = role.toLowerCase();
+    if (normalized.includes('driver')) return 'driver';
+    if (normalized.includes('rider')) return 'rider';
+  }
+
+  // Default to empty string
+  return '';
+}
+
 export function register(app: App, fastify: FastifyInstance) {
   const requireAuth = app.requireAuth();
 
@@ -127,9 +148,9 @@ export function register(app: App, fastify: FastifyInstance) {
     const fullName = profile.full_name || (profile.first_name && profile.last_name
       ? `${profile.first_name} ${profile.last_name}`.trim()
       : null);
-    const normalizedRole = profile.role
-      ? normalizeRole(profile.role)
-      : normalizeRole(profile.user_type);
+
+    // Normalize both role and user_type to lowercase
+    const normalizedUserType = normalizeUserTypeField(profile.user_type, profile.role);
 
     app.logger.info({ userId: session.user.id, profileId: profile.id }, 'Profile retrieved successfully');
     return reply.send({
@@ -141,8 +162,8 @@ export function register(app: App, fastify: FastifyInstance) {
       last_name: profile.last_name || null,
       phone: profile.phone || profile.mobile_number || null,
       mobile_number: profile.mobile_number || null,
-      role: normalizedRole,
-      user_type: profile.user_type,
+      role: normalizedUserType,
+      user_type: normalizedUserType,
       country: profile.country || null,
       language: profile.language || null,
       profile_picture_url: profile.profile_picture_url || null,

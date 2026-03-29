@@ -15,7 +15,7 @@ export default function TabLayout() {
     key => typeof (profile as any)?.[key] === 'string' && (profile as any)[key].toLowerCase().includes('driver')
   );
 
-  const homeLabel = isDriver ? 'Drive' : t('rides');
+  const homeLabel = isDriver ? 'Drive/Ride' : t('rides');
 
   const tabs = [
     {

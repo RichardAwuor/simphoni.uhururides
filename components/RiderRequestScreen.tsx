@@ -245,7 +245,7 @@ type VehicleCardProps = {
 const VEHICLE_INFO: Record<VehicleType, { label: string; desc: string; Icon: any }> = {
   car: { label: 'Car', desc: 'Comfortable sedan or SUV for up to 4 passengers', Icon: Car },
   tuktuk: { label: 'Tuktuk / Bajaj', desc: 'Affordable 3-wheeler, great for short trips', Icon: Zap },
-  motorbike: { label: 'Motorbike', desc: 'Fast boda-boda for solo riders', Icon: Bike },
+  motorbike: { label: 'Motorbike', desc: 'Fast boda-boda for solo passengers', Icon: Bike },
 };
 
 function VehicleCard({ type, selected, onPress }: VehicleCardProps) {
@@ -324,7 +324,7 @@ function RiderBargainModal({ rideId, bargain, currency, originalPrice, onRespond
     <Modal visible transparent animationType="slide" onRequestClose={() => {}}>
       <View style={bm.overlay}>
         <View style={bm.card}>
-          <Text style={bm.title}>Driver Counter-Offer</Text>
+          <Text style={bm.title}>Driver/Rider Counter-Offer</Text>
           <View style={bm.priceRow}>
             <View style={bm.priceBox}>
               <Text style={bm.priceLabel}>Your Offer</Text>
@@ -334,14 +334,14 @@ function RiderBargainModal({ rideId, bargain, currency, originalPrice, onRespond
               <Text style={bm.arrowText}>→</Text>
             </View>
             <View style={bm.priceBox}>
-              <Text style={bm.priceLabel}>Driver Asks</Text>
+              <Text style={bm.priceLabel}>Driver/Rider Asks</Text>
               <Text style={bm.bargainPrice}>{bargainPriceText}</Text>
             </View>
           </View>
           <View style={bm.percentBadge}>
             <Text style={bm.percentText}>{percentText} increase</Text>
           </View>
-          <Text style={bm.subtitle}>Do you accept the driver's counter-offer?</Text>
+          <Text style={bm.subtitle}>Do you accept the driver/rider's counter-offer?</Text>
           <View style={bm.btnRow}>
             <AnimatedPressable
               onPress={() => handleResponse('rejected')}
@@ -693,7 +693,7 @@ export default function RiderRequestScreen() {
             <View style={s.successState}>
               <Text style={s.successEmoji}>🎉</Text>
               <Text style={s.successTitle}>Ride Confirmed!</Text>
-              <Text style={s.successSubtitle}>Your driver is on the way. Get ready!</Text>
+              <Text style={s.successSubtitle}>Your driver/rider is on the way. Get ready!</Text>
               <AnimatedPressable onPress={resetWizard} style={s.primaryBtn}>
                 <Text style={s.primaryBtnText}>Request Another Ride</Text>
               </AnimatedPressable>
@@ -712,8 +712,8 @@ export default function RiderRequestScreen() {
           >
             <View style={s.successState}>
               <Text style={s.successEmoji}>😔</Text>
-              <Text style={s.successTitle}>No drivers available</Text>
-              <Text style={s.successSubtitle}>No drivers accepted your request. Please try again.</Text>
+              <Text style={s.successTitle}>No drivers/riders available</Text>
+              <Text style={s.successSubtitle}>No drivers/riders accepted your request. Please try again.</Text>
               <AnimatedPressable onPress={resetWizard} style={s.primaryBtn}>
                 <Text style={s.primaryBtnText}>New Request</Text>
               </AnimatedPressable>
@@ -743,8 +743,8 @@ export default function RiderRequestScreen() {
             </Animated.View>
           </View>
 
-          <Text style={s.waitingTitle}>Waiting for a driver...</Text>
-          <Text style={s.waitingSubtitle}>Hang tight, we're matching you with a nearby driver</Text>
+          <Text style={s.waitingTitle}>Waiting for a driver/rider...</Text>
+          <Text style={s.waitingSubtitle}>Hang tight, we're matching you with a nearby driver/rider</Text>
 
           {/* Ride summary */}
           <View style={s.summaryCard}>

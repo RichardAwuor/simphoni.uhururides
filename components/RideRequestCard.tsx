@@ -82,7 +82,7 @@ export function RideRequestCard({ request, index, onAccept, onBargain, onIgnore 
           </View>
           <View style={{ flex: 1 }}>
             <Text style={{ fontSize: 16, fontWeight: '700', color: COLORS.text, fontFamily: 'Nunito_700Bold' }}>
-              {request.rider_first_name || 'Rider'}
+              {request.rider_first_name || 'Passenger'}
             </Text>
             <Text style={{ fontSize: 12, color: COLORS.textTertiary, fontFamily: 'Nunito_400Regular' }}>
               Ride Request

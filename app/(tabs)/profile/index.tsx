@@ -166,7 +166,7 @@ function RoleBadge({ role }: { role?: 'driver' | 'passenger' | null }) {
   const isDriver = role === 'driver';
   const bg = isDriver ? '#1a1a1a' : '#F5C518';
   const textColor = isDriver ? '#FFFFFF' : '#1a1a1a';
-  const label = isDriver ? 'Driver' : 'Passenger';
+  const label = isDriver ? 'Driver/Rider' : 'Passenger';
   return (
     <View
       style={{

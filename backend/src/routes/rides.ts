@@ -19,65 +19,9 @@ interface CreateRideBody {
 export function register(app: App, fastify: FastifyInstance) {
   const requireAuth = app.requireAuth();
 
-  // Initialize sample rides on startup
-  fastify.addHook('onReady', async () => {
-    app.logger.info({}, 'Checking for sample rides...');
-    try {
-      const existingRides = await app.db.query.rides.findMany({
-        where: eq(schema.rides.rider_id, 'seed-rider-001'),
-      });
-
-      if (existingRides.length === 0) {
-        app.logger.info({}, 'Seeding sample rides...');
-        const sampleRides = [
-          {
-            id: createId(),
-            rider_id: 'seed-rider-001',
-            pickup_location: 'Nairobi CBD',
-            dropoff_location: 'Westlands',
-            pickup_lat: -1.2921,
-            pickup_lng: 36.8219,
-            dropoff_lat: -1.2676,
-            dropoff_lng: 36.8108,
-            vehicle_type: 'sedan',
-            fare: 350,
-            status: 'pending',
-          },
-          {
-            id: createId(),
-            rider_id: 'seed-rider-001',
-            pickup_location: 'Kampala Road',
-            dropoff_location: 'Entebbe Airport',
-            pickup_lat: 0.3163,
-            pickup_lng: 32.5822,
-            dropoff_lat: 0.0424,
-            dropoff_lng: 32.4435,
-            vehicle_type: 'suv',
-            fare: 80000,
-            status: 'pending',
-          },
-          {
-            id: createId(),
-            rider_id: 'seed-rider-001',
-            pickup_location: 'Dar es Salaam Ferry',
-            dropoff_location: 'Julius Nyerere Airport',
-            pickup_lat: -6.8160,
-            pickup_lng: 39.2803,
-            dropoff_lat: -6.8780,
-            dropoff_lng: 39.2026,
-            vehicle_type: 'sedan',
-            fare: 25000,
-            status: 'pending',
-          },
-        ];
-
-        await app.db.insert(schema.rides).values(sampleRides);
-        app.logger.info({ count: sampleRides.length }, 'Sample rides seeded successfully');
-      }
-    } catch (error) {
-      app.logger.warn({ err: error }, 'Failed to seed sample rides (may already exist)');
-    }
-  });
+  // Initialize sample rides on startup - skipped as it requires valid user IDs
+  // Note: This was previously trying to insert rides with non-existent user IDs,
+  // which violated FK constraints. Sample rides should be created with real authenticated users.
 
   // POST /api/rides - Create a new ride
   fastify.post('/api/rides', {

@@ -75,25 +75,32 @@ export function register(app: App, fastify: FastifyInstance) {
           properties: {
             id: { type: 'string' },
             user_id: { type: 'string' },
-            email: { type: 'string' },
-            full_name: { type: ['string', 'null'] },
-            first_name: { type: ['string', 'null'] },
-            last_name: { type: ['string', 'null'] },
-            phone: { type: ['string', 'null'] },
+            user_type: { type: 'string' },
+            first_name: { type: 'string' },
+            last_name: { type: 'string' },
+            resident_district: { type: 'string' },
             mobile_number: { type: ['string', 'null'] },
-            role: { type: ['string', 'null'] },
-            user_type: { type: ['string', 'null'] },
-            country: { type: ['string', 'null'] },
-            language: { type: ['string', 'null'] },
+            country: { type: 'string' },
+            language: { type: 'string' },
             profile_picture_url: { type: ['string', 'null'] },
+            created_at: { type: 'string', format: 'date-time' },
+            full_name: { type: ['string', 'null'] },
+            phone: { type: ['string', 'null'] },
+            role: { type: ['string', 'null'] },
             vehicle_make: { type: ['string', 'null'] },
             vehicle_model: { type: ['string', 'null'] },
             license_plate: { type: ['string', 'null'] },
             national_id: { type: ['string', 'null'] },
-            created_at: { type: ['string', 'null'], format: 'date-time' },
+            muted: { type: 'boolean' },
+            pickup_lat: { type: ['number', 'null'] },
+            pickup_lng: { type: ['number', 'null'] },
           },
         },
         401: {
+          type: 'object',
+          properties: { error: { type: 'string' } },
+        },
+        404: {
           type: 'object',
           properties: { error: { type: 'string' } },
         },
@@ -105,74 +112,46 @@ export function register(app: App, fastify: FastifyInstance) {
 
     app.logger.info({ userId: session.user.id }, 'Fetching user profile');
 
-    // Fetch user record for email
-    const userRecord = await app.db.query.user.findFirst({
-      where: eq(authSchema.user.id, session.user.id),
-    });
-
-    if (!userRecord) {
-      app.logger.warn({ userId: session.user.id }, 'User not found');
-      return reply.status(401).send({ error: 'Unauthorized' });
-    }
-
-    // Fetch profile
-    const profile = await app.db.query.profiles.findFirst({
-      where: eq(schema.profiles.user_id, session.user.id),
-    });
-
-    // If no profile exists, return partial response with user data
-    if (!profile) {
-      app.logger.info({ userId: session.user.id }, 'Profile not found, returning user data');
-      return reply.send({
-        user_id: session.user.id,
-        email: userRecord.email || '',
-        full_name: null,
-        first_name: null,
-        last_name: null,
-        phone: null,
-        mobile_number: null,
-        role: null,
-        user_type: null,
-        country: null,
-        language: null,
-        profile_picture_url: userRecord.image || null,
-        vehicle_make: null,
-        vehicle_model: null,
-        license_plate: null,
-        national_id: null,
-        created_at: null,
+    try {
+      // Fetch profile
+      const profile = await app.db.query.profiles.findFirst({
+        where: eq(schema.profiles.user_id, session.user.id),
       });
+
+      // If no profile exists, return 404
+      if (!profile) {
+        app.logger.info({ userId: session.user.id }, 'Profile not found');
+        return reply.status(404).send({ error: 'Profile not found' });
+      }
+
+      app.logger.info({ userId: session.user.id, profileId: profile.id }, 'Profile retrieved successfully');
+      return reply.send({
+        id: profile.id,
+        user_id: profile.user_id,
+        user_type: profile.user_type,
+        first_name: profile.first_name,
+        last_name: profile.last_name,
+        resident_district: profile.resident_district,
+        mobile_number: profile.mobile_number,
+        country: profile.country,
+        language: profile.language,
+        profile_picture_url: profile.profile_picture_url,
+        created_at: profile.created_at,
+        full_name: profile.full_name,
+        phone: profile.phone,
+        role: profile.role,
+        vehicle_make: profile.vehicle_make,
+        vehicle_model: profile.vehicle_model,
+        license_plate: profile.license_plate,
+        national_id: profile.national_id,
+        muted: profile.muted,
+        pickup_lat: profile.pickup_lat,
+        pickup_lng: profile.pickup_lng,
+      });
+    } catch (error) {
+      app.logger.error({ err: error, userId: session.user.id }, 'Failed to fetch profile');
+      throw error;
     }
-
-    // Compute COALESCE values for response
-    const fullName = profile.full_name || (profile.first_name && profile.last_name
-      ? `${profile.first_name} ${profile.last_name}`.trim()
-      : null);
-
-    // Normalize both role and user_type to lowercase
-    const normalizedUserType = normalizeUserTypeField(profile.user_type, profile.role);
-
-    app.logger.info({ userId: session.user.id, profileId: profile.id }, 'Profile retrieved successfully');
-    return reply.send({
-      id: profile.id,
-      user_id: profile.user_id,
-      email: userRecord.email || '',
-      full_name: fullName,
-      first_name: profile.first_name || null,
-      last_name: profile.last_name || null,
-      phone: profile.phone || profile.mobile_number || null,
-      mobile_number: profile.mobile_number || null,
-      role: normalizedUserType,
-      user_type: normalizedUserType,
-      country: profile.country || null,
-      language: profile.language || null,
-      profile_picture_url: profile.profile_picture_url || null,
-      vehicle_make: profile.vehicle_make || null,
-      vehicle_model: profile.vehicle_model || null,
-      license_plate: profile.license_plate || null,
-      national_id: profile.national_id || null,
-      created_at: profile.created_at,
-    });
   });
 
   // POST /api/profiles/me - Upsert profile for current user

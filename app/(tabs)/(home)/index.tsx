@@ -14,6 +14,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ImageSourcePropType,
+  TouchableOpacity,
 } from 'react-native';
 import { Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -569,14 +570,42 @@ function DriveScreen() {
 // ─── Root Screen (role-branching) ─────────────────────────────────────────────
 
 export default function RidesScreen() {
-  const { profile, profileLoading } = useProfile();
+  const { profile, profileLoading, refreshProfile } = useProfile();
 
-  if (profileLoading || profile === null) {
-    console.log('[RidesScreen] Profile not ready — profileLoading:', profileLoading, 'profile:', profile);
+  if (profileLoading) {
+    console.log('[RidesScreen] Profile loading…');
     return (
       <View style={{ flex: 1, backgroundColor: BG, alignItems: 'center', justifyContent: 'center' }}>
         <Stack.Screen options={{ title: 'Loading...', headerShown: true }} />
         <ActivityIndicator size="large" color={PRIMARY} />
+      </View>
+    );
+  }
+
+  if (profile === null) {
+    console.log('[RidesScreen] Profile is null after loading — showing error state');
+    return (
+      <View style={{ flex: 1, backgroundColor: BG, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32, gap: 16 }}>
+        <Stack.Screen options={{ title: 'Connect', headerShown: true }} />
+        <Text style={{ fontSize: 16, color: '#888', fontFamily: 'Nunito_400Regular', textAlign: 'center' }}>
+          Could not load your profile. Please try again.
+        </Text>
+        <TouchableOpacity
+          onPress={() => {
+            console.log('[RidesScreen] Retry profile load pressed');
+            refreshProfile();
+          }}
+          style={{
+            backgroundColor: PRIMARY,
+            borderRadius: 12,
+            paddingHorizontal: 28,
+            paddingVertical: 12,
+          }}
+        >
+          <Text style={{ fontSize: 15, fontWeight: '700', color: '#FFFFFF', fontFamily: 'Nunito_700Bold' }}>
+            Retry
+          </Text>
+        </TouchableOpacity>
       </View>
     );
   }

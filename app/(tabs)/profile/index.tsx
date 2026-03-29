@@ -950,7 +950,7 @@ function RiderProfile({ profile, authEmail }: { profile: ApiProfile; authEmail?:
 
 export default function ProfileScreen() {
   const { user } = useAuth();
-  const { profile: ctxProfile } = useProfile();
+  const { profile: ctxProfile, refreshProfile } = useProfile();
   const [profile, setProfile] = useState<ApiProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -1005,7 +1005,30 @@ export default function ProfileScreen() {
       setProfile(data);
     } catch (e: any) {
       console.error('[ProfileScreen] Profile fetch failed:', e);
-      setError(e?.message || 'Failed to load profile');
+      // Fall back to context profile if available rather than showing an error
+      if (ctxProfile) {
+        console.log('[ProfileScreen] Falling back to ctxProfile after fetch error');
+        const ctxRole = (ctxProfile?.user_type ?? ctxProfile?.role ?? '').toLowerCase();
+        const normalizedRole: 'passenger' | 'driver' =
+          ctxRole === 'driver' ? 'driver' : 'passenger';
+        const fallback: ApiProfile = {
+          id: (ctxProfile as any).id ?? '',
+          full_name: (ctxProfile as any).full_name || (ctxProfile as any).name || '',
+          phone: (ctxProfile as any).phone || (ctxProfile as any).mobile_number || '',
+          mobile_number: (ctxProfile as any).mobile_number || (ctxProfile as any).phone || '',
+          email: (ctxProfile as any).email || '',
+          role: normalizedRole,
+          user_type: normalizedRole,
+          vehicle_make: (ctxProfile as any).vehicle_make ?? null,
+          vehicle_model: (ctxProfile as any).vehicle_model ?? null,
+          license_plate: (ctxProfile as any).license_plate ?? null,
+          national_id: (ctxProfile as any).national_id ?? null,
+          created_at: (ctxProfile as any).created_at ?? new Date().toISOString(),
+        };
+        setProfile(fallback);
+      } else {
+        setError('Could not load profile. Tap Retry to try again.');
+      }
     } finally {
       setLoading(false);
     }
@@ -1068,6 +1091,7 @@ export default function ProfileScreen() {
         <TouchableOpacity
           onPress={() => {
             console.log('[ProfileScreen] Retry profile fetch pressed');
+            refreshProfile();
             fetchProfile();
           }}
           style={{

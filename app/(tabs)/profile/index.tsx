@@ -946,7 +946,7 @@ export default function ProfileScreen() {
         ((raw.first_name || raw.last_name) ? `${raw.first_name || ''} ${raw.last_name || ''}`.trim() : '');
       const normalizedPhone: string = raw.phone || raw.mobile_number || raw.phone_number || '';
       const normalizedRole: 'rider' | 'driver' =
-        ((raw.role ?? raw.user_type ?? '') as string).toLowerCase() === 'driver' ? 'driver' : 'rider';
+        ((raw.user_type ?? raw.role ?? '') as string).toLowerCase() === 'driver' ? 'driver' : 'rider';
       const data: ApiProfile = {
         ...raw,
         full_name: normalizedName,

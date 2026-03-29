@@ -582,15 +582,15 @@ export default function RidesScreen() {
   }
 
   const normalizeRole = (val: any) => (typeof val === 'string' ? val.toLowerCase().trim() : '');
-  const roleVal = normalizeRole(profile?.role);
-  const userTypeVal = normalizeRole((profile as any)?.user_type);
-  const userRoleVal = normalizeRole((profile as any)?.user_role);
+  const profileAny = profile as any;
   const isDriver =
-    roleVal.includes('driver') ||
-    userTypeVal.includes('driver') ||
-    userRoleVal.includes('driver');
-
-  console.log('[RidesScreen] role-branch — role:', profile?.role, 'user_type:', (profile as any)?.user_type, 'isDriver:', isDriver);
+    normalizeRole(profileAny?.user_type).includes('driver') ||
+    normalizeRole(profileAny?.role).includes('driver') ||
+    normalizeRole(profileAny?.user_role).includes('driver') ||
+    Object.values(profileAny ?? {}).some(
+      (v) => typeof v === 'string' && v.toLowerCase().includes('driver')
+    );
+  console.log('[RidesScreen] profile keys:', JSON.stringify(profileAny), 'isDriver:', isDriver);
 
   if (isDriver) {
     return <DriverRidesScreen />;

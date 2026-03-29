@@ -947,7 +947,7 @@ export default function ProfileScreen() {
       const normalizedName: string = raw.full_name || raw.name ||
         ((raw.first_name || raw.last_name) ? `${raw.first_name || ''} ${raw.last_name || ''}`.trim() : '');
       const normalizedPhone: string = raw.phone || raw.mobile_number || raw.phone_number || '';
-      const ctxRole = (ctxProfile?.role ?? ctxProfile?.user_type ?? '').toLowerCase();
+      const ctxRole = (ctxProfile?.user_type ?? ctxProfile?.role ?? '').toLowerCase();
       const rawRole = ((raw?.user_type ?? raw?.role ?? '') as string).toLowerCase();
       const normalizedRole: 'rider' | 'driver' =
         ctxRole === 'driver' || ctxRole === 'rider'

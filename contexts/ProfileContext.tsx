@@ -57,8 +57,8 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
       // Normalize: backend returns "role", alias it as user_type for compat
       const normalized: Profile = {
         ...raw,
-        role: (raw.role ?? raw.user_type ?? '').toLowerCase() as 'driver' | 'rider',
-        user_type: (raw.role ?? raw.user_type ?? '').toLowerCase() as 'driver' | 'rider',
+        role: ((raw.user_type ?? raw.role ?? '') as string).toLowerCase() as 'driver' | 'rider',
+        user_type: ((raw.user_type ?? raw.role ?? '') as string).toLowerCase() as 'driver' | 'rider',
       };
       setProfile(normalized);
       setDriverDetails(null);

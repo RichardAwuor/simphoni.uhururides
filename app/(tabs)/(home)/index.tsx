@@ -118,12 +118,13 @@ interface DriverCardProps {
   request: RideRequest;
   onAccept: (id: string) => void;
   onIgnore: (id: string) => void;
+  onReject: (id: string) => void;
   onBargainSent: (id: string) => void;
   actionLoading: string | null;
   bargainWaiting: boolean;
 }
 
-function DriverRideCard({ request, onAccept, onIgnore, onBargainSent, actionLoading, bargainWaiting }: DriverCardProps) {
+function DriverRideCard({ request, onAccept, onIgnore, onReject, onBargainSent, actionLoading, bargainWaiting }: DriverCardProps) {
   const opacity = useRef(new Animated.Value(0)).current;
   const translateY = useRef(new Animated.Value(20)).current;
   const [bargainOpen, setBargainOpen] = useState(false);
@@ -259,6 +260,17 @@ function DriverRideCard({ request, onAccept, onIgnore, onBargainSent, actionLoad
                 style={[styles.btnIgnore, isLoading && styles.btnDisabled]}
               >
                 <Text style={styles.btnIgnoreText}>Ignore</Text>
+              </AnimatedPressable>
+
+              <AnimatedPressable
+                onPress={() => {
+                  console.log('[DriverRideCard] Reject pressed — id:', request.id);
+                  onReject(request.id);
+                }}
+                disabled={isLoading}
+                style={[styles.btnReject, isLoading && styles.btnDisabled]}
+              >
+                <Text style={styles.btnRejectText}>Reject</Text>
               </AnimatedPressable>
             </View>
 
@@ -421,6 +433,17 @@ function DriverRidesScreen() {
     }
   };
 
+  const handleReject = async (id: string) => {
+    console.log('[DriverRidesScreen] POST /api/ride-requests/' + id + '/reject — action: rejected');
+    setCurrentRequest(null);
+    try {
+      await apiPost(`/api/ride-requests/${id}/reject`, { action: 'rejected' });
+      console.log('[DriverRidesScreen] Ride rejected:', id);
+    } catch (e) {
+      console.error('[DriverRidesScreen] Reject failed:', e);
+    }
+  };
+
   const handleBargainSent = (id: string) => {
     console.log('[DriverRidesScreen] Bargain sent for ride:', id, '— entering wait state');
     setBargainWaiting(true);
@@ -485,6 +508,7 @@ function DriverRidesScreen() {
             request={currentRequest}
             onAccept={handleAccept}
             onIgnore={handleIgnore}
+            onReject={handleReject}
             onBargainSent={handleBargainSent}
             actionLoading={actionLoading}
             bargainWaiting={bargainWaiting}
@@ -521,7 +545,7 @@ export default function RidesScreen() {
     );
   }
 
-  const normalizeRole = (val: any) => typeof val === 'string' ? val.toLowerCase() : '';
+  const normalizeRole = (val: any) => typeof val === 'string' ? val.toLowerCase().trim() : '';
   const isDriver =
     normalizeRole(profile?.role) === 'driver' ||
     normalizeRole((profile as any)?.user_type) === 'driver' ||
@@ -777,6 +801,22 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: TEXT_SECONDARY,
+    fontFamily: 'Nunito_600SemiBold',
+  },
+  btnReject: {
+    flex: 1,
+    backgroundColor: 'transparent',
+    borderRadius: 10,
+    paddingVertical: 13,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: '#EF4444',
+  },
+  btnRejectText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#EF4444',
     fontFamily: 'Nunito_600SemiBold',
   },
   btnDisabled: {

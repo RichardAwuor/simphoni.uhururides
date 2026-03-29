@@ -481,7 +481,7 @@ function DriverRidesScreen() {
     <View style={styles.container}>
       <Stack.Screen
         options={{
-          title: 'Accept requests',
+          title: 'Drive',
           headerShown: true,
           headerStyle: { backgroundColor: PRIMARY },
           headerTitleStyle: {

@@ -5,17 +5,24 @@ import { Stack } from 'expo-router';
 import FloatingTabBar from '@/components/FloatingTabBar';
 import { useTranslation } from '@/hooks/useTranslation';
 import { COLORS } from '@/constants/colors';
+import { useProfile } from '@/contexts/ProfileContext';
 
 export default function TabLayout() {
   const pathname = usePathname();
   const { t } = useTranslation();
+  const { profile } = useProfile();
+  const isDriver = ['role', 'user_type', 'user_role'].some(
+    key => typeof (profile as any)?.[key] === 'string' && (profile as any)[key].toLowerCase().includes('driver')
+  );
+
+  const homeLabel = isDriver ? 'Drive' : t('rides');
 
   const tabs = [
     {
       name: '(home)',
       route: '/(tabs)/(home)' as const,
       icon: 'directions-car' as const,
-      label: t('rides'),
+      label: homeLabel,
     },
     {
       name: 'profile',

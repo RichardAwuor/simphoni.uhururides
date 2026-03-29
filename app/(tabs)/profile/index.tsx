@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   View,
   Text,
@@ -164,14 +163,11 @@ function AvatarCircle({ name }: { name: string }) {
 
 function RoleBadge({ role }: { role?: 'driver' | 'passenger' | null }) {
   if (!role) return null;
-  const isDriver = role === 'driver';
-  const bg = isDriver ? '#1a1a1a' : '#F5C518';
-  const textColor = isDriver ? '#FFFFFF' : '#1a1a1a';
-  const label = isDriver ? 'Driver/Rider' : 'Passenger';
+  const label = 'Passenger';
   return (
     <View
       style={{
-        backgroundColor: bg,
+        backgroundColor: '#F5C518',
         borderRadius: 20,
         paddingHorizontal: 10,
         paddingVertical: 3,
@@ -182,7 +178,7 @@ function RoleBadge({ role }: { role?: 'driver' | 'passenger' | null }) {
         style={{
           fontSize: 12,
           fontWeight: '700',
-          color: textColor,
+          color: '#1a1a1a',
           fontFamily: 'Nunito_700Bold',
         }}
       >
@@ -265,71 +261,6 @@ function ProfileHeaderCard({ profile, authEmail }: { profile: ApiProfile; authEm
           </Text>
         </View>
       </View>
-    </View>
-  );
-}
-
-function VehicleDetailsCard({ profile }: { profile: ApiProfile }) {
-  const makeDisplay = profile.vehicle_make || '—';
-  const modelDisplay = profile.vehicle_model || '—';
-  const plateDisplay = profile.license_plate || '—';
-  const idDisplay = profile.national_id || '—';
-  return (
-    <View style={CARD_STYLE}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 14 }}>
-        <Text style={{ fontSize: 16 }}>🚗</Text>
-        <Text
-          style={{
-            fontSize: 16,
-            fontWeight: '700',
-            color: '#1A1A1A',
-            fontFamily: 'Nunito_700Bold',
-          }}
-        >
-          Vehicle Details
-        </Text>
-      </View>
-      <View style={{ gap: 12 }}>
-        <VehicleRow label="Make" value={makeDisplay} />
-        <VehicleRow label="Model" value={modelDisplay} />
-        <VehicleRow label="License Plate" value={plateDisplay} bold />
-        <VehicleRow label="National ID" value={idDisplay} />
-      </View>
-    </View>
-  );
-}
-
-function VehicleRow({ label, value, bold }: { label: string; value: string; bold?: boolean }) {
-  return (
-    <View
-      style={{
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        paddingVertical: 4,
-        borderBottomWidth: 1,
-        borderBottomColor: 'rgba(0,0,0,0.05)',
-      }}
-    >
-      <Text
-        style={{
-          fontSize: 13,
-          color: '#888',
-          fontFamily: 'Nunito_400Regular',
-        }}
-      >
-        {label}
-      </Text>
-      <Text
-        style={{
-          fontSize: bold ? 16 : 14,
-          fontWeight: bold ? '700' : '600',
-          color: '#1A1A1A',
-          fontFamily: bold ? 'Nunito_700Bold' : 'Nunito_600SemiBold',
-        }}
-      >
-        {value}
-      </Text>
     </View>
   );
 }
@@ -613,178 +544,6 @@ function SignOutButton() {
   );
 }
 
-// ─── Driver Profile ───────────────────────────────────────────────────────────
-
-function DriverProfile({ profile, authEmail }: { profile: ApiProfile; authEmail?: string }) {
-  const insets = useSafeAreaInsets();
-
-  const defaultTo = new Date();
-  const defaultFrom = new Date();
-  defaultFrom.setDate(defaultFrom.getDate() - 30);
-
-  const [fromDate, setFromDate] = useState(defaultFrom);
-  const [toDate, setToDate] = useState(defaultTo);
-  const [stats, setStats] = useState<RideStats | null>(null);
-  const [statsLoading, setStatsLoading] = useState(false);
-  const [statsError, setStatsError] = useState<string | null>(null);
-
-  const fetchStats = useCallback(async (from: Date, to: Date) => {
-    console.log('[DriverProfile] Fetching ride-stats from:', toYMD(from), 'to:', toYMD(to));
-    setStatsLoading(true);
-    setStatsError(null);
-    try {
-      const data = await apiGet<RideStats>(
-        `/api/ride-stats?from=${toYMD(from)}&to=${toYMD(to)}&role=driver`
-      );
-      console.log('[DriverProfile] ride-stats response:', data);
-      setStats(data);
-    } catch (e: any) {
-      console.error('[DriverProfile] ride-stats fetch failed:', e);
-      setStatsError(e?.message || 'Failed to load stats');
-    } finally {
-      setStatsLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchStats(fromDate, toDate);
-  }, []);
-
-  const handleFromChange = (d: Date) => {
-    setFromDate(d);
-    fetchStats(d, toDate);
-  };
-
-  const handleToChange = (d: Date) => {
-    setToDate(d);
-    fetchStats(fromDate, d);
-  };
-
-  const totalRidesDisplay = stats ? formatNumber(stats.total_rides) : '—';
-  const currency =
-    stats && stats.rides && stats.rides.length > 0
-      ? String(stats.rides[0].currency || 'KES').toUpperCase()
-      : 'KES';
-  const earningsDisplay = stats
-    ? `${currency} ${formatNumber(Number(stats.total_earnings || 0))}`
-    : '—';
-  const distanceDisplay = stats
-    ? `${Number(stats.total_distance_km || 0).toFixed(1)} km`
-    : '—';
-  const memberSince = formatDate(profile.created_at);
-
-  return (
-    <ScrollView
-      style={{ flex: 1, backgroundColor: '#FAF7F0' }}
-      contentContainerStyle={{ paddingBottom: 100, paddingHorizontal: 16 }}
-      showsVerticalScrollIndicator={false}
-    >
-      <View style={{ paddingTop: insets.top + 16, paddingBottom: 8 }}>
-        <Text
-          style={{
-            fontSize: 26,
-            fontWeight: '800',
-            color: '#1A1A1A',
-            fontFamily: 'Nunito_800ExtraBold',
-          }}
-        >
-          Profile
-        </Text>
-      </View>
-
-      <ProfileHeaderCard profile={profile} authEmail={authEmail} />
-      <VehicleDetailsCard profile={profile} />
-
-      {/* Ride History */}
-      <View style={CARD_STYLE}>
-        <Text
-          style={{
-            fontSize: 16,
-            fontWeight: '700',
-            color: '#1A1A1A',
-            fontFamily: 'Nunito_700Bold',
-            marginBottom: 14,
-          }}
-        >
-          Ride History
-        </Text>
-
-        <DateRangePicker
-          fromDate={fromDate}
-          toDate={toDate}
-          onFromChange={handleFromChange}
-          onToChange={handleToChange}
-        />
-
-        {statsLoading ? (
-          <View style={{ alignItems: 'center', paddingVertical: 24 }}>
-            <ActivityIndicator color="#F5A623" size="large" />
-          </View>
-        ) : statsError ? (
-          <View style={{ alignItems: 'center', paddingVertical: 20, gap: 10 }}>
-            <Text style={{ fontSize: 13, color: '#EF4444', fontFamily: 'Nunito_400Regular', textAlign: 'center' }}>
-              {statsError}
-            </Text>
-            <TouchableOpacity
-              onPress={() => {
-                console.log('[DriverProfile] Retry stats fetch pressed');
-                fetchStats(fromDate, toDate);
-              }}
-              style={{
-                backgroundColor: '#F5A623',
-                borderRadius: 10,
-                paddingHorizontal: 20,
-                paddingVertical: 8,
-              }}
-            >
-              <Text style={{ fontSize: 13, fontWeight: '700', color: '#FFFFFF', fontFamily: 'Nunito_700Bold' }}>
-                Retry
-              </Text>
-            </TouchableOpacity>
-          </View>
-        ) : (
-          <>
-            <View style={{ flexDirection: 'row', gap: 10, marginBottom: 12 }}>
-              <View style={{ flex: 1 }}>
-                <StatCard icon="🚗" label="Rides" value={totalRidesDisplay} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <StatCard icon="💰" label="Earnings" value={earningsDisplay} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <StatCard icon="📍" label="Distance" value={distanceDisplay} />
-              </View>
-            </View>
-
-            <Text
-              style={{
-                fontSize: 12,
-                color: '#888',
-                fontFamily: 'Nunito_400Regular',
-                marginBottom: 16,
-              }}
-            >
-              Member since {memberSince}
-            </Text>
-
-            {stats && stats.rides && stats.rides.length > 0 ? (
-              stats.rides.map((ride) => <RideHistoryItem key={ride.id} ride={ride} />)
-            ) : (
-              <View style={{ alignItems: 'center', paddingVertical: 20 }}>
-                <Text style={{ fontSize: 14, color: '#888', fontFamily: 'Nunito_400Regular' }}>
-                  No rides in this period
-                </Text>
-              </View>
-            )}
-          </>
-        )}
-      </View>
-
-      <SignOutButton />
-    </ScrollView>
-  );
-}
-
 // ─── Rider Profile ────────────────────────────────────────────────────────────
 
 function RiderProfile({ profile, authEmail }: { profile: ApiProfile; authEmail?: string }) {
@@ -954,16 +713,6 @@ export default function ProfileScreen() {
   const [profile, setProfile] = useState<ApiProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [storedRole, setStoredRole] = useState<'driver' | 'passenger' | null>(null);
-
-  useEffect(() => {
-    AsyncStorage.getItem('user_type').then((val) => {
-      console.log('[ProfileScreen] AsyncStorage user_type on mount:', val);
-      if (val === 'driver' || val === 'passenger') {
-        setStoredRole(val);
-      }
-    });
-  }, []);
 
   const fetchProfile = useCallback(async () => {
     console.log('[ProfileScreen] Fetching /api/profiles/me');
@@ -971,58 +720,36 @@ export default function ProfileScreen() {
     setError(null);
     try {
       const raw = await apiGet<any>('/api/profiles/me');
-      console.log('[ProfileScreen] Profile raw response — phone:', raw.phone, 'mobile_number:', raw.mobile_number, 'phone_number:', raw.phone_number, 'name:', raw.name, 'full_name:', raw.full_name);
+      console.log('[ProfileScreen] Profile raw response — phone:', raw.phone, 'mobile_number:', raw.mobile_number, 'name:', raw.name, 'full_name:', raw.full_name);
       const normalizedName: string = raw.full_name || raw.name ||
         ((raw.first_name || raw.last_name) ? `${raw.first_name || ''} ${raw.last_name || ''}`.trim() : '');
       const normalizedPhone: string = raw.phone || raw.mobile_number || raw.phone_number || '';
-      const ctxRole = (ctxProfile?.user_type ?? ctxProfile?.role ?? '').toLowerCase();
-      const rawRole = ((raw?.user_type ?? raw?.role ?? '') as string).toLowerCase();
-      let normalizedRole: 'passenger' | 'driver' =
-        ctxRole === 'driver' || ctxRole === 'passenger'
-          ? (ctxRole as 'driver' | 'passenger')
-          : rawRole === 'driver'
-          ? 'driver'
-          : 'passenger';
-      // Final fallback: if role resolved to default 'passenger' but neither ctx nor raw had a valid value,
-      // check AsyncStorage
-      if (ctxRole !== 'driver' && ctxRole !== 'passenger' && rawRole !== 'driver' && rawRole !== 'passenger') {
-        const stored = await AsyncStorage.getItem('user_type');
-        console.log('[ProfileScreen] AsyncStorage fallback user_type:', stored);
-        if (stored === 'driver' || stored === 'passenger') {
-          normalizedRole = stored;
-        }
-      }
-      console.log('[ProfileScreen] normalizedRole — ctx:', ctxRole, 'raw:', rawRole, 'resolved:', normalizedRole);
       const data: ApiProfile = {
         ...raw,
         full_name: normalizedName,
-        role: normalizedRole,
-        user_type: normalizedRole,
+        role: 'passenger',
+        user_type: 'passenger',
         phone: normalizedPhone,
         mobile_number: normalizedPhone,
       };
-      console.log('[ProfileScreen] Profile normalized — role:', data.role, 'full_name:', data.full_name, 'phone:', data.phone);
+      console.log('[ProfileScreen] Profile normalized — full_name:', data.full_name, 'phone:', data.phone);
       setProfile(data);
     } catch (e: any) {
       console.error('[ProfileScreen] Profile fetch failed:', e);
-      // Fall back to context profile if available rather than showing an error
       if (ctxProfile) {
         console.log('[ProfileScreen] Falling back to ctxProfile after fetch error');
-        const ctxRole = (ctxProfile?.user_type ?? ctxProfile?.role ?? '').toLowerCase();
-        const normalizedRole: 'passenger' | 'driver' =
-          ctxRole === 'driver' ? 'driver' : 'passenger';
         const fallback: ApiProfile = {
           id: (ctxProfile as any).id ?? '',
           full_name: (ctxProfile as any).full_name || (ctxProfile as any).name || '',
           phone: (ctxProfile as any).phone || (ctxProfile as any).mobile_number || '',
           mobile_number: (ctxProfile as any).mobile_number || (ctxProfile as any).phone || '',
           email: (ctxProfile as any).email || '',
-          role: normalizedRole,
-          user_type: normalizedRole,
-          vehicle_make: (ctxProfile as any).vehicle_make ?? null,
-          vehicle_model: (ctxProfile as any).vehicle_model ?? null,
-          license_plate: (ctxProfile as any).license_plate ?? null,
-          national_id: (ctxProfile as any).national_id ?? null,
+          role: 'passenger',
+          user_type: 'passenger',
+          vehicle_make: null,
+          vehicle_model: null,
+          license_plate: null,
+          national_id: null,
           created_at: (ctxProfile as any).created_at ?? new Date().toISOString(),
         };
         setProfile(fallback);
@@ -1041,22 +768,6 @@ export default function ProfileScreen() {
       setLoading(false);
     }
   }, [user, ctxProfile]);
-
-  // Sync role from context or AsyncStorage whenever ctxProfile/storedRole updates, without a full re-fetch
-  useEffect(() => {
-    if (profile) {
-      const ctxRole = (ctxProfile?.role ?? ctxProfile?.user_type ?? '').toLowerCase();
-      if (ctxRole === 'driver' || ctxRole === 'passenger') {
-        if (profile.role !== ctxRole) {
-          console.log('[ProfileScreen] Syncing role from ctxProfile:', ctxRole);
-          setProfile(prev => prev ? { ...prev, role: ctxRole as 'driver' | 'passenger', user_type: ctxRole as 'driver' | 'passenger' } : prev);
-        }
-      } else if (storedRole && profile.role !== storedRole) {
-        console.log('[ProfileScreen] Syncing role from AsyncStorage storedRole:', storedRole);
-        setProfile(prev => prev ? { ...prev, role: storedRole, user_type: storedRole } : prev);
-      }
-    }
-  }, [ctxProfile, storedRole]);
 
   if (loading) {
     return (
@@ -1110,8 +821,5 @@ export default function ProfileScreen() {
   }
 
   const authEmail = user?.email ?? undefined;
-  if (profile.role === 'driver') {
-    return <DriverProfile profile={profile} authEmail={authEmail} />;
-  }
   return <RiderProfile profile={profile} authEmail={authEmail} />;
 }

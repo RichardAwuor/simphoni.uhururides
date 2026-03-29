@@ -24,15 +24,21 @@ const getPlugins = () => {
 export const authClient = createAuthClient({
   baseURL: API_URL,
   plugins: getPlugins(),
-  ...(Platform.OS === "web" && {
-    fetchOptions: {
-      credentials: "include",
-      auth: {
-        type: "Bearer" as const,
-        token: () => localStorage.getItem(BEARER_TOKEN_KEY) || "",
-      },
-    },
-  }),
+  fetchOptions: {
+    ...(Platform.OS === "web"
+      ? {
+          credentials: "include",
+          auth: {
+            type: "Bearer" as const,
+            token: () => localStorage.getItem(BEARER_TOKEN_KEY) || "",
+          },
+        }
+      : {
+          headers: {
+            Origin: API_URL,
+          },
+        }),
+  },
 });
 
 export async function setBearerToken(token: string) {

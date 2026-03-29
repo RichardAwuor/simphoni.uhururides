@@ -97,7 +97,7 @@ export const translations: Record<Language, Record<TranslationKey, string>> = {
     accept: 'Accept',
     reject: 'Reject',
     bargain: 'Bargain',
-    rides: 'Rides',
+    rides: 'Connect',
     profile: 'Profile',
     requests: 'Requests',
     signOut: 'Sign Out',

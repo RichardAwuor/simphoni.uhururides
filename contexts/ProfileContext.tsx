@@ -9,6 +9,7 @@ export interface Profile {
   role: 'driver' | 'rider';
   /** Alias for role — kept for backward compat */
   user_type: 'driver' | 'rider';
+  user_role?: 'driver' | 'rider';
   name: string;
   email: string;
   phone?: string;
@@ -54,11 +55,12 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
     try {
       const raw = await apiGet<any>('/api/profile');
       console.log('[ProfileContext] Profile fetched:', raw);
-      // Normalize: backend returns "role", alias it as user_type for compat
+      const rawRoleStr = ((raw.user_type ?? raw.role ?? raw.user_role ?? '') as string).toLowerCase();
+      console.log('[ProfileContext] Raw profile fields — user_type:', raw.user_type, 'role:', raw.role, 'user_role:', raw.user_role, 'normalized:', rawRoleStr);
       const normalized: Profile = {
         ...raw,
-        role: ((raw.user_type ?? raw.role ?? '') as string).toLowerCase() as 'driver' | 'rider',
-        user_type: ((raw.user_type ?? raw.role ?? '') as string).toLowerCase() as 'driver' | 'rider',
+        role: rawRoleStr as 'driver' | 'rider',
+        user_type: rawRoleStr as 'driver' | 'rider',
       };
       setProfile(normalized);
       setDriverDetails(null);

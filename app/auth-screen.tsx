@@ -241,6 +241,11 @@ export default function AuthScreen() {
       try {
         await saveProfileData();
         console.log('[AuthScreen] Profile saved successfully');
+        // Small delay to ensure backend has committed the profile row
+        await new Promise(resolve => setTimeout(resolve, 500));
+        console.log('[AuthScreen] Re-fetching profile to confirm user_type is committed');
+        await refreshProfile();
+        console.log('[AuthScreen] Profile re-fetch complete');
       } catch (profileErr: any) {
         console.warn('[AuthScreen] Profile save failed (non-fatal):', profileErr?.message);
       }

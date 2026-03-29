@@ -570,7 +570,8 @@ function DriverRidesScreen() {
 export default function RidesScreen() {
   const { profile, profileLoading } = useProfile();
 
-  if (profileLoading) {
+  if (profileLoading || profile === null) {
+    console.log('[RidesScreen] Profile not ready — profileLoading:', profileLoading, 'profile:', profile);
     return (
       <View style={styles.container}>
         <Stack.Screen options={{ title: 'Rides', headerShown: true, headerStyle: { backgroundColor: BG } }} />

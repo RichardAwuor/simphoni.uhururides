@@ -571,7 +571,8 @@ function DriveScreen() {
 export default function RidesScreen() {
   const { profile, profileLoading } = useProfile();
 
-  if (profileLoading) {
+  if (profileLoading || profile === null) {
+    console.log('[RidesScreen] Profile not ready — profileLoading:', profileLoading, 'profile:', profile);
     return (
       <View style={{ flex: 1, backgroundColor: BG, alignItems: 'center', justifyContent: 'center' }}>
         <Stack.Screen options={{ title: 'Loading...', headerShown: true }} />

@@ -19,7 +19,7 @@ import { Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AnimatedPressable } from '@/components/AnimatedPressable';
 import { apiGet, apiPatch } from '@/utils/api';
-import { MapPin, Flag, Navigation, Phone, BellOff, Car, Wifi } from 'lucide-react-native';
+import { MapPin, Flag, Navigation, Phone, BellOff, Car } from 'lucide-react-native';
 import { useProfile } from '@/contexts/ProfileContext';
 import RiderRequestScreen from '@/components/RiderRequestScreen';
 
@@ -481,7 +481,7 @@ function DriverRidesScreen() {
     <View style={styles.container}>
       <Stack.Screen
         options={{
-          title: 'Drive',
+          title: 'Accept requests',
           headerShown: true,
           headerStyle: { backgroundColor: PRIMARY },
           headerTitleStyle: {
@@ -545,16 +545,16 @@ function DriverRidesScreen() {
               {muted ? (
                 <BellOff size={40} color={TEXT_SECONDARY} />
               ) : (
-                <Wifi size={40} color={PRIMARY} />
+                <Car size={40} color={PRIMARY} />
               )}
             </View>
             <Text style={styles.emptyTitle}>
-              {muted ? 'Requests muted' : 'Waiting for ride requests...'}
+              {muted ? 'Requests muted' : 'Waiting for passenger requests...'}
             </Text>
             <Text style={styles.emptySubtitle}>
               {muted
                 ? 'Toggle the switch above to start receiving requests'
-                : 'New requests will appear here automatically'}
+                : 'New passenger requests will appear here automatically'}
             </Text>
           </View>
         )}

@@ -304,6 +304,11 @@ describe("API Integration Tests", () => {
       await expectStatus(res, 404);
     });
 
+    test("Get ride with invalid UUID format should return 400", async () => {
+      const res = await authenticatedApi("/api/rides/invalid-uuid", authToken);
+      await expectStatus(res, 400);
+    });
+
     test("Get my rides", async () => {
       const res = await authenticatedApi("/api/rides/my", authToken);
       await expectStatus(res, 200);
@@ -379,6 +384,13 @@ describe("API Integration Tests", () => {
       await expectStatus(res, 404);
     });
 
+    test("Accept ride with invalid UUID format should return 400", async () => {
+      const res = await authenticatedApi("/api/rides/invalid-uuid/accept", authToken, {
+        method: "POST",
+      });
+      await expectStatus(res, 400);
+    });
+
     test("Create test ride for complete", async () => {
       const res = await authenticatedApi("/api/rides", authToken, {
         method: "POST",
@@ -411,6 +423,13 @@ describe("API Integration Tests", () => {
       await expectStatus(res, 404);
     });
 
+    test("Complete ride with invalid UUID format should return 400", async () => {
+      const res = await authenticatedApi("/api/rides/invalid-uuid/complete", authToken, {
+        method: "POST",
+      });
+      await expectStatus(res, 400);
+    });
+
     test("Create test ride for cancel", async () => {
       const res = await authenticatedApi("/api/rides", authToken, {
         method: "POST",
@@ -441,6 +460,13 @@ describe("API Integration Tests", () => {
         method: "POST",
       });
       await expectStatus(res, 404);
+    });
+
+    test("Cancel ride with invalid UUID format should return 400", async () => {
+      const res = await authenticatedApi("/api/rides/invalid-uuid/cancel", authToken, {
+        method: "POST",
+      });
+      await expectStatus(res, 400);
     });
   });
 
@@ -507,6 +533,11 @@ describe("API Integration Tests", () => {
       await expectStatus(res, 404);
     });
 
+    test("Get ride request with invalid UUID format should return 400", async () => {
+      const res = await authenticatedApi("/api/ride-requests/invalid-uuid", authToken);
+      await expectStatus(res, 400);
+    });
+
     test("Accept ride request", async () => {
       const res = await authenticatedApi(`/api/ride-requests/${rideRequestId}/accept`, authToken, {
         method: "POST",
@@ -521,6 +552,13 @@ describe("API Integration Tests", () => {
         method: "POST",
       });
       await expectStatus(res, 404);
+    });
+
+    test("Accept ride request with invalid UUID format should return 400", async () => {
+      const res = await authenticatedApi("/api/ride-requests/invalid-uuid/accept", authToken, {
+        method: "POST",
+      });
+      await expectStatus(res, 400);
     });
 
     test("Create ride request for bargain test", async () => {
@@ -653,6 +691,17 @@ describe("API Integration Tests", () => {
       await expectStatus(res, 404);
     });
 
+    test("Send bargain with invalid UUID format should return 400", async () => {
+      const res = await authenticatedApi("/api/ride-requests/invalid-uuid/bargain", authToken, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          bargain_percent: 10,
+        }),
+      });
+      await expectStatus(res, 400);
+    });
+
     test("Respond to bargain - accept", async () => {
       const res = await authenticatedApi(`/api/ride-requests/${rideRequestId}/bargain-response`, riderToken, {
         method: "POST",
@@ -728,6 +777,17 @@ describe("API Integration Tests", () => {
         }
       );
       await expectStatus(res, 404);
+    });
+
+    test("Respond to bargain with invalid UUID format should return 400", async () => {
+      const res = await authenticatedApi("/api/ride-requests/invalid-uuid/bargain-response", riderToken, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          response: "accepted",
+        }),
+      });
+      await expectStatus(res, 400);
     });
 
     test("Reject ride request with 'rejected' action", async () => {
@@ -828,6 +888,17 @@ describe("API Integration Tests", () => {
         }),
       });
       await expectStatus(res, 404);
+    });
+
+    test("Reject ride request with invalid UUID format should return 400", async () => {
+      const res = await authenticatedApi("/api/ride-requests/invalid-uuid/reject", authToken, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "rejected",
+        }),
+      });
+      await expectStatus(res, 400);
     });
 
     test("Create ride request with missing required fields should fail", async () => {

@@ -375,7 +375,7 @@ export function register(app: App, fastify: FastifyInstance) {
         type: 'object',
         required: ['id'],
         properties: {
-          id: { type: 'string' },
+          id: { type: 'string', pattern: '^([a-z0-9]+|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$' },
         },
       },
       response: {
@@ -617,7 +617,7 @@ export function register(app: App, fastify: FastifyInstance) {
         type: 'object',
         required: ['id'],
         properties: {
-          id: { type: 'string' },
+          id: { type: 'string', pattern: '^([a-z0-9]+|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$' },
         },
       },
       response: {
@@ -708,7 +708,7 @@ export function register(app: App, fastify: FastifyInstance) {
         type: 'object',
         required: ['id'],
         properties: {
-          id: { type: 'string' },
+          id: { type: 'string', pattern: '^([a-z0-9]+|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$' },
         },
       },
       body: {
@@ -822,7 +822,7 @@ export function register(app: App, fastify: FastifyInstance) {
         type: 'object',
         required: ['id'],
         properties: {
-          id: { type: 'string' },
+          id: { type: 'string', pattern: '^([a-z0-9]+|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$' },
         },
       },
       body: {
@@ -969,7 +969,7 @@ export function register(app: App, fastify: FastifyInstance) {
         type: 'object',
         required: ['id'],
         properties: {
-          id: { type: 'string' },
+          id: { type: 'string', pattern: '^([a-z0-9]+|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$' },
         },
       },
       body: {

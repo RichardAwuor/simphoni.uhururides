@@ -142,7 +142,7 @@ export function register(app: App, fastify: FastifyInstance) {
       phone: profile.phone || profile.mobile_number || null,
       mobile_number: profile.mobile_number || null,
       role: normalizedRole,
-      user_type: normalizedRole,
+      user_type: profile.user_type,
       country: profile.country || null,
       language: profile.language || null,
       profile_picture_url: profile.profile_picture_url || null,
@@ -308,7 +308,7 @@ export function register(app: App, fastify: FastifyInstance) {
       return reply.send({
         ...profile,
         email: userRecord?.email || '',
-        user_type: normalizedRole,
+        user_type: profile.user_type,
         role: normalizedRole,
         phone: profile.phone || profile.mobile_number,
       });
@@ -696,45 +696,14 @@ export function register(app: App, fastify: FastifyInstance) {
       app.logger.info({ userId }, 'Getting user profile');
 
       // Query profile by user_id
-      let profile = await app.db.query.profiles.findFirst({
+      const profile = await app.db.query.profiles.findFirst({
         where: eq(schema.profiles.user_id, userId),
       });
 
-      // If profile doesn't exist, auto-create one from user data
+      // If profile doesn't exist, return 404
       if (!profile) {
-        app.logger.info({ userId }, 'Profile not found, attempting to create');
-
-        const user = await app.db.query.user.findFirst({
-          where: eq(authSchema.user.id, userId),
-        });
-
-        if (!user) {
-          app.logger.warn({ userId }, 'User not found');
-          return reply.status(404).send({ message: 'User not found' });
-        }
-
-        // Split user name into first and last name
-        const nameParts = (user.name || 'User').trim().split(/\s+/);
-        const firstName = nameParts[0] || 'User';
-        const lastName = nameParts.slice(1).join(' ') || '';
-
-        const profileId = createId();
-        const [created] = await app.db.insert(schema.profiles).values({
-          id: profileId,
-          user_id: userId,
-          user_type: 'rider', // default to rider
-          first_name: firstName,
-          last_name: lastName,
-          full_name: user.name,
-          resident_district: 'Kampala',
-          country: 'uganda', // default to Uganda
-          language: 'english', // default to English
-          profile_picture_url: user.image,
-          role: 'rider',
-        }).returning();
-
-        profile = created;
-        app.logger.info({ userId, profileId }, 'Profile auto-created successfully');
+        app.logger.info({ userId }, 'Profile not found');
+        return reply.status(404).send({ message: 'Profile not found' });
       }
 
       // Compute normalized role: prefer user_type (authoritative), fallback to role, default to 'rider'
@@ -750,7 +719,7 @@ export function register(app: App, fastify: FastifyInstance) {
       app.logger.info({ userId, profileId: profile.id, role: normalizedRole }, 'User profile retrieved successfully');
       return reply.status(200).send({
         ...profile,
-        user_type: normalizedRole,
+        user_type: profile.user_type,
         role: normalizedRole,
         phone: profile.phone || profile.mobile_number,
       });

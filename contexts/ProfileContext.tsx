@@ -53,7 +53,7 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
     setProfileLoading(true);
     console.log('[ProfileContext] Fetching profile for user:', user.id);
     try {
-      const raw = await apiGet<any>('/api/profile');
+      const raw = await apiGet<any>('/api/profiles/me');
       console.log('[ProfileContext] Profile fetched:', raw);
       const rawRoleStr = ((raw.user_type ?? raw.role ?? raw.user_role ?? '') as string).toLowerCase();
       console.log('[ProfileContext] Raw profile fields — user_type:', raw.user_type, 'role:', raw.role, 'user_role:', raw.user_role, 'normalized:', rawRoleStr);

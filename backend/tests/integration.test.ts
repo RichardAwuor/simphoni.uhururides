@@ -493,6 +493,20 @@ describe("API Integration Tests", () => {
       expect(data.status).toBeDefined();
     });
 
+    test("Get ride request by ID", async () => {
+      const res = await authenticatedApi(`/api/ride-requests/${rideRequestId}`, authToken);
+      await expectStatus(res, 200);
+      const data = await res.json();
+      expect(data.id).toBe(rideRequestId);
+      expect(data.pickup_location).toBe("Westlands");
+      expect(data.destination).toBe("South B");
+    });
+
+    test("Get nonexistent ride request should return 404", async () => {
+      const res = await authenticatedApi("/api/ride-requests/00000000-0000-0000-0000-000000000000", authToken);
+      await expectStatus(res, 404);
+    });
+
     test("Accept ride request", async () => {
       const res = await authenticatedApi(`/api/ride-requests/${rideRequestId}/accept`, authToken, {
         method: "POST",

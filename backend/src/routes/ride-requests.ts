@@ -185,7 +185,24 @@ async function findNearestDriver(
 }
 
 // Helper: Format ride request response (maps price_offer to offered_price)
-function formatRideRequest(row: any): any {
+async function formatRideRequest(app: App, row: any): Promise<any> {
+  // Get driver ID (prefer assigned_driver_id, fall back to driver_id)
+  const driverId = row.assigned_driver_id || row.driver_id;
+  let registrationNumber = null;
+
+  if (driverId) {
+    try {
+      const driverDetails = await app.db.query.driver_details.findFirst({
+        where: eq(schema.driver_details.user_id, driverId),
+      });
+      if (driverDetails) {
+        registrationNumber = driverDetails.car_registration;
+      }
+    } catch (error) {
+      app.logger.warn({ err: error, driverId }, 'Failed to fetch driver registration number');
+    }
+  }
+
   return {
     id: row.id,
     rider_id: row.rider_id,
@@ -205,6 +222,7 @@ function formatRideRequest(row: any): any {
     driver_attempt_count: row.driver_attempt_count,
     rider_first_name: row.rider_first_name,
     rider_phone: row.rider_phone,
+    registration_number: registrationNumber,
     created_at: row.created_at,
   };
 }
@@ -255,6 +273,7 @@ export function register(app: App, fastify: FastifyInstance) {
             driver_attempt_count: { type: 'number' },
             rider_first_name: { type: ['string', 'null'] },
             rider_phone: { type: ['string', 'null'] },
+            registration_number: { type: ['string', 'null'] },
             created_at: { type: 'string', format: 'date-time' },
           },
         },
@@ -333,15 +352,91 @@ export function register(app: App, fastify: FastifyInstance) {
         'Ride request created successfully'
       );
 
-      return reply.status(201).send(formatRideRequest({
+      const formattedRide = await formatRideRequest(app, {
         ...rideRequest[0],
         rider_first_name: riderName,
-      }));
+      });
+      return reply.status(201).send(formattedRide);
     } catch (error) {
       app.logger.error(
         { err: error, userId, offered_price },
         'Failed to create ride request'
       );
+      throw error;
+    }
+  });
+
+  // GET /api/ride-requests/:id - Get a single ride request
+  fastify.get('/api/ride-requests/:id', {
+    schema: {
+      description: 'Get a single ride request by ID',
+      tags: ['ride-requests'],
+      params: {
+        type: 'object',
+        required: ['id'],
+        properties: {
+          id: { type: 'string' },
+        },
+      },
+      response: {
+        200: {
+          type: 'object',
+          properties: {
+            id: { type: 'string' },
+            rider_id: { type: 'string' },
+            driver_id: { type: ['string', 'null'] },
+            vehicle_type: { type: 'string' },
+            pickup_location: { type: 'string' },
+            pickup_lat: { type: 'number' },
+            pickup_lng: { type: 'number' },
+            destination: { type: 'string' },
+            destination_lat: { type: 'number' },
+            destination_lng: { type: 'number' },
+            distance_km: { type: 'number' },
+            offered_price: { type: 'number' },
+            final_price: { type: ['number', 'null'] },
+            currency: { type: 'string' },
+            status: { type: 'string' },
+            driver_attempt_count: { type: 'number' },
+            rider_first_name: { type: ['string', 'null'] },
+            rider_phone: { type: ['string', 'null'] },
+            registration_number: { type: ['string', 'null'] },
+            created_at: { type: 'string', format: 'date-time' },
+          },
+        },
+        404: { type: 'object', properties: { error: { type: 'string' } } },
+      },
+    },
+  }, async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
+    const { id } = request.params;
+
+    app.logger.info({ rideId: id }, 'Fetching ride request');
+
+    try {
+      const ride = await app.db.query.ride_requests.findFirst({
+        where: eq(schema.ride_requests.id, id),
+      });
+
+      if (!ride) {
+        app.logger.warn({ rideId: id }, 'Ride request not found');
+        return reply.status(404).send({ error: 'Ride request not found' });
+      }
+
+      // Get rider's first name
+      const riderProfile = await app.db.query.profiles.findFirst({
+        where: eq(schema.profiles.user_id, ride.rider_id),
+      });
+
+      const formattedRide = await formatRideRequest(app, {
+        ...ride,
+        rider_first_name: riderProfile?.first_name,
+      });
+
+      app.logger.info({ rideId: id }, 'Ride request fetched successfully');
+
+      return formattedRide;
+    } catch (error) {
+      app.logger.error({ err: error, rideId: id }, 'Failed to fetch ride request');
       throw error;
     }
   });
@@ -376,6 +471,7 @@ export function register(app: App, fastify: FastifyInstance) {
                 driver_attempt_count: { type: 'number' },
                 rider_first_name: { type: ['string', 'null'] },
                 rider_phone: { type: 'null' },
+                registration_number: { type: ['string', 'null'] },
                 created_at: { type: 'string', format: 'date-time' },
               },
             },
@@ -416,12 +512,13 @@ export function register(app: App, fastify: FastifyInstance) {
 
       app.logger.debug({ rideId: ride.id }, 'Found current ride for driver');
 
+      const formattedRide = await formatRideRequest(app, {
+        ...ride,
+        rider_first_name: riderProfile?.first_name,
+        rider_phone: null, // Don't include phone for driver endpoint
+      });
       return {
-        ride_request: formatRideRequest({
-          ...ride,
-          rider_first_name: riderProfile?.first_name,
-          rider_phone: null, // Don't include phone for driver endpoint
-        }),
+        ride_request: formattedRide,
       };
     } catch (error) {
       app.logger.error({ err: error, userId }, 'Failed to fetch driver current ride');
@@ -475,7 +572,7 @@ export function register(app: App, fastify: FastifyInstance) {
           where: eq(schema.profiles.user_id, ride.rider_id),
         });
 
-        rideResponse = formatRideRequest({
+        rideResponse = await formatRideRequest(app, {
           ...ride,
           rider_first_name: riderProfile?.first_name,
         });

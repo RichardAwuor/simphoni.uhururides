@@ -195,21 +195,38 @@ function ProfileHeaderCard({ profile, authEmail }: { profile: ApiProfile; authEm
   const phoneDisplay = profile.phone || profile.mobile_number || null;
   const emailDisplay = profile.email || authEmail || null;
   const nameDisplay = profile.full_name || emailDisplay?.split('@')[0] || '—';
+  const rawFirstName = nameDisplay.trim().split(/\s+/)[0] || nameDisplay;
+  const firstNameDisplay = rawFirstName.charAt(0).toUpperCase() + rawFirstName.slice(1).toLowerCase();
+  const restOfName = nameDisplay.trim().split(/\s+/).slice(1).join(' ');
   return (
     <View style={CARD_STYLE}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
         <AvatarCircle name={nameDisplay} />
         <View style={{ flex: 1, gap: 6 }}>
-          <Text
-            style={{
-              fontSize: 20,
-              fontWeight: '700',
-              color: '#1A1A1A',
-              fontFamily: 'Nunito_700Bold',
-            }}
-          >
-            {nameDisplay}
-          </Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap' }}>
+            <Text
+              style={{
+                fontSize: 20,
+                fontWeight: '700',
+                color: '#1A1A1A',
+                fontFamily: 'Nunito_700Bold',
+              }}
+            >
+              {firstNameDisplay}
+            </Text>
+            {restOfName ? (
+              <Text
+                style={{
+                  fontSize: 20,
+                  fontWeight: '700',
+                  color: '#1A1A1A',
+                  fontFamily: 'Nunito_700Bold',
+                }}
+              >
+                {' '}{restOfName}
+              </Text>
+            ) : null}
+          </View>
           <RoleBadge role={profile.role} />
         </View>
       </View>

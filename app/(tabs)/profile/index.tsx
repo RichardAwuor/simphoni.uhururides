@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   View,
   Text,
@@ -953,6 +954,16 @@ export default function ProfileScreen() {
   const [profile, setProfile] = useState<ApiProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [storedRole, setStoredRole] = useState<'driver' | 'passenger' | null>(null);
+
+  useEffect(() => {
+    AsyncStorage.getItem('user_type').then((val) => {
+      console.log('[ProfileScreen] AsyncStorage user_type on mount:', val);
+      if (val === 'driver' || val === 'passenger') {
+        setStoredRole(val);
+      }
+    });
+  }, []);
 
   const fetchProfile = useCallback(async () => {
     console.log('[ProfileScreen] Fetching /api/profiles/me');
@@ -966,12 +977,21 @@ export default function ProfileScreen() {
       const normalizedPhone: string = raw.phone || raw.mobile_number || raw.phone_number || '';
       const ctxRole = (ctxProfile?.user_type ?? ctxProfile?.role ?? '').toLowerCase();
       const rawRole = ((raw?.user_type ?? raw?.role ?? '') as string).toLowerCase();
-      const normalizedRole: 'passenger' | 'driver' =
+      let normalizedRole: 'passenger' | 'driver' =
         ctxRole === 'driver' || ctxRole === 'passenger'
           ? (ctxRole as 'driver' | 'passenger')
           : rawRole === 'driver'
           ? 'driver'
           : 'passenger';
+      // Final fallback: if role resolved to default 'passenger' but neither ctx nor raw had a valid value,
+      // check AsyncStorage
+      if (ctxRole !== 'driver' && ctxRole !== 'passenger' && rawRole !== 'driver' && rawRole !== 'passenger') {
+        const stored = await AsyncStorage.getItem('user_type');
+        console.log('[ProfileScreen] AsyncStorage fallback user_type:', stored);
+        if (stored === 'driver' || stored === 'passenger') {
+          normalizedRole = stored;
+        }
+      }
       console.log('[ProfileScreen] normalizedRole — ctx:', ctxRole, 'raw:', rawRole, 'resolved:', normalizedRole);
       const data: ApiProfile = {
         ...raw,
@@ -999,16 +1019,21 @@ export default function ProfileScreen() {
     }
   }, [user, ctxProfile]);
 
-  // Sync role from context whenever ctxProfile updates, without a full re-fetch
+  // Sync role from context or AsyncStorage whenever ctxProfile/storedRole updates, without a full re-fetch
   useEffect(() => {
-    if (ctxProfile && profile) {
-      const ctxRole = (ctxProfile.role ?? ctxProfile.user_type ?? '').toLowerCase();
-      if ((ctxRole === 'driver' || ctxRole === 'passenger') && profile.role !== ctxRole) {
-        console.log('[ProfileScreen] Syncing role from ctxProfile:', ctxRole);
-        setProfile(prev => prev ? { ...prev, role: ctxRole as 'driver' | 'passenger', user_type: ctxRole as 'driver' | 'passenger' } : prev);
+    if (profile) {
+      const ctxRole = (ctxProfile?.role ?? ctxProfile?.user_type ?? '').toLowerCase();
+      if (ctxRole === 'driver' || ctxRole === 'passenger') {
+        if (profile.role !== ctxRole) {
+          console.log('[ProfileScreen] Syncing role from ctxProfile:', ctxRole);
+          setProfile(prev => prev ? { ...prev, role: ctxRole as 'driver' | 'passenger', user_type: ctxRole as 'driver' | 'passenger' } : prev);
+        }
+      } else if (storedRole && profile.role !== storedRole) {
+        console.log('[ProfileScreen] Syncing role from AsyncStorage storedRole:', storedRole);
+        setProfile(prev => prev ? { ...prev, role: storedRole, user_type: storedRole } : prev);
       }
     }
-  }, [ctxProfile]);
+  }, [ctxProfile, storedRole]);
 
   if (loading) {
     return (

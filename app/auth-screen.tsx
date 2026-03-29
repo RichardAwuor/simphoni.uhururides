@@ -29,6 +29,7 @@ import {
 } from 'lucide-react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { apiPost } from '@/utils/api';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTranslation } from '@/hooks/useTranslation';
 
 const LOGO = require('../assets/images/9829a994-e39e-4ffe-a130-d61d8cab00e2.png');
@@ -213,6 +214,8 @@ export default function AuthScreen() {
 
     console.log('[AuthScreen] Saving profile data:', basePayload);
     await apiPost('/api/profiles/me', basePayload);
+    await AsyncStorage.setItem('user_type', userType ?? 'passenger');
+    console.log('[AuthScreen] Persisted user_type to AsyncStorage:', userType ?? 'passenger');
 
     if (isDriver) {
       const driverPayload = {

@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '@/contexts/AuthContext';
 import { apiGet } from '@/utils/api';
 
@@ -57,10 +58,18 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
       console.log('[ProfileContext] Profile fetched:', raw);
       const rawRoleStr = ((raw.user_type ?? raw.role ?? raw.user_role ?? '') as string).toLowerCase().trim();
       console.log('[ProfileContext] Raw profile fields — user_type:', raw.user_type, 'role:', raw.role, 'user_role:', raw.user_role, 'normalized:', rawRoleStr);
+      let finalRole = rawRoleStr;
+      if (finalRole !== 'driver' && finalRole !== 'passenger') {
+        const stored = await AsyncStorage.getItem('user_type');
+        console.log('[ProfileContext] AsyncStorage fallback user_type:', stored);
+        if (stored === 'driver' || stored === 'passenger') {
+          finalRole = stored;
+        }
+      }
       const normalized: Profile = {
         ...raw,
-        role: rawRoleStr as 'driver' | 'passenger',
-        user_type: rawRoleStr as 'driver' | 'passenger',
+        role: finalRole as 'driver' | 'passenger',
+        user_type: finalRole as 'driver' | 'passenger',
       };
       setProfile(normalized);
       setDriverDetails(null);

@@ -127,7 +127,6 @@ export function register(app: App, fastify: FastifyInstance) {
     const fullName = profile.full_name || (profile.first_name && profile.last_name
       ? `${profile.first_name} ${profile.last_name}`.trim()
       : null);
-    const phoneNumber = profile.phone || profile.mobile_number || '';
     const normalizedRole = profile.role
       ? normalizeRole(profile.role)
       : normalizeRole(profile.user_type);
@@ -140,8 +139,8 @@ export function register(app: App, fastify: FastifyInstance) {
       full_name: fullName,
       first_name: profile.first_name || null,
       last_name: profile.last_name || null,
-      phone: phoneNumber || null,
-      mobile_number: phoneNumber || null,
+      phone: profile.phone || profile.mobile_number || null,
+      mobile_number: profile.mobile_number || null,
       role: normalizedRole,
       user_type: profile.user_type,
       country: profile.country || null,
@@ -230,9 +229,6 @@ export function register(app: App, fastify: FastifyInstance) {
     );
 
     try {
-      // Determine phone number (use mobile_number if provided, else phone)
-      const phoneNumber = mobile_number || phone;
-
       // Determine full name and first/last names
       let firstName = first_name;
       let lastName = last_name;
@@ -270,8 +266,8 @@ export function register(app: App, fastify: FastifyInstance) {
         user_type: userType as 'driver' | 'rider',
         first_name: firstName || '',
         last_name: lastName || '',
-        mobile_number: phoneNumber || null,
-        phone: phoneNumber || null,
+        mobile_number: mobile_number || null,
+        phone: phone || null,
         country: country || 'kenya' as const,
         language: normalizeLanguage(language),
         resident_district: '',

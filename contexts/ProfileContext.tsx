@@ -5,11 +5,11 @@ import { apiGet } from '@/utils/api';
 export interface Profile {
   id: string;
   user_id: string;
-  /** Backend returns "role" field with values "rider" | "driver" */
-  role: 'driver' | 'rider';
+  /** Backend returns "role" field with values "passenger" | "driver" */
+  role: 'driver' | 'passenger';
   /** Alias for role — kept for backward compat */
-  user_type: 'driver' | 'rider';
-  user_role?: 'driver' | 'rider';
+  user_type: 'driver' | 'passenger';
+  user_role?: 'driver' | 'passenger';
   name: string;
   email: string;
   phone?: string;
@@ -59,8 +59,8 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
       console.log('[ProfileContext] Raw profile fields — user_type:', raw.user_type, 'role:', raw.role, 'user_role:', raw.user_role, 'normalized:', rawRoleStr);
       const normalized: Profile = {
         ...raw,
-        role: rawRoleStr as 'driver' | 'rider',
-        user_type: rawRoleStr as 'driver' | 'rider',
+        role: rawRoleStr as 'driver' | 'passenger',
+        user_type: rawRoleStr as 'driver' | 'passenger',
       };
       setProfile(normalized);
       setDriverDetails(null);

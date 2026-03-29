@@ -21,6 +21,7 @@ export type TranslationKey =
   | 'vehicleDetails'
   | 'driver'
   | 'rider'
+  | 'passenger'
   | 'iGiveRides'
   | 'iNeedRides'
   | 'continueBtn'
@@ -78,6 +79,7 @@ export const translations: Record<Language, Record<TranslationKey, string>> = {
     vehicleDetails: 'Vehicle Details',
     driver: 'Driver',
     rider: 'Rider',
+    passenger: 'Passenger',
     iGiveRides: 'I give rides',
     iNeedRides: 'I need rides',
     continueBtn: 'Continue',
@@ -133,6 +135,7 @@ export const translations: Record<Language, Record<TranslationKey, string>> = {
     vehicleDetails: 'Maelezo ya gari',
     driver: 'Dereva',
     rider: 'Abiria',
+    passenger: 'Abiria',
     iGiveRides: 'Natoa safari',
     iNeedRides: 'Nahitaji safari',
     continueBtn: 'Endelea',
@@ -188,6 +191,7 @@ export const translations: Record<Language, Record<TranslationKey, string>> = {
     vehicleDetails: "Amakuru y'imodoka",
     driver: 'Umushoferi',
     rider: 'Umugenzi',
+    passenger: 'Umugenzi',
     iGiveRides: 'Ntwara abantu',
     iNeedRides: 'Nkenera gutwara',
     continueBtn: 'Komeza',
@@ -243,6 +247,7 @@ export const translations: Record<Language, Record<TranslationKey, string>> = {
     vehicleDetails: 'የተሽከርካሪ ዝርዝሮች',
     driver: 'አሽከርካሪ',
     rider: 'ተሳፋሪ',
+    passenger: 'ተሳፋሪ',
     iGiveRides: 'ጉዞ እሰጣለሁ',
     iNeedRides: 'ጉዞ እፈልጋለሁ',
     continueBtn: 'ቀጥል',

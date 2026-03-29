@@ -25,8 +25,8 @@ interface ApiProfile {
   phone?: string;
   mobile_number?: string;
   email: string;
-  role?: 'rider' | 'driver';
-  user_type?: 'rider' | 'driver';
+  role?: 'passenger' | 'driver';
+  user_type?: 'passenger' | 'driver';
   vehicle_make: string | null;
   vehicle_model: string | null;
   license_plate: string | null;
@@ -161,12 +161,12 @@ function AvatarCircle({ name }: { name: string }) {
   );
 }
 
-function RoleBadge({ role }: { role?: 'driver' | 'rider' | null }) {
+function RoleBadge({ role }: { role?: 'driver' | 'passenger' | null }) {
   if (!role) return null;
   const isDriver = role === 'driver';
   const bg = isDriver ? '#1a1a1a' : '#F5C518';
   const textColor = isDriver ? '#FFFFFF' : '#1a1a1a';
-  const label = isDriver ? 'Driver' : 'Rider';
+  const label = isDriver ? 'Driver' : 'Passenger';
   return (
     <View
       style={{
@@ -788,7 +788,7 @@ function RiderProfile({ profile, authEmail }: { profile: ApiProfile; authEmail?:
     setStatsError(null);
     try {
       const data = await apiGet<RideStats>(
-        `/api/ride-stats?from=${toYMD(from)}&to=${toYMD(to)}&role=rider`
+        `/api/ride-stats?from=${toYMD(from)}&to=${toYMD(to)}&role=passenger`
       );
       console.log('[RiderProfile] ride-stats response:', data);
       setStats(data);
@@ -949,12 +949,12 @@ export default function ProfileScreen() {
       const normalizedPhone: string = raw.phone || raw.mobile_number || raw.phone_number || '';
       const ctxRole = (ctxProfile?.user_type ?? ctxProfile?.role ?? '').toLowerCase();
       const rawRole = ((raw?.user_type ?? raw?.role ?? '') as string).toLowerCase();
-      const normalizedRole: 'rider' | 'driver' =
-        ctxRole === 'driver' || ctxRole === 'rider'
-          ? (ctxRole as 'driver' | 'rider')
+      const normalizedRole: 'passenger' | 'driver' =
+        ctxRole === 'driver' || ctxRole === 'passenger'
+          ? (ctxRole as 'driver' | 'passenger')
           : rawRole === 'driver'
           ? 'driver'
-          : 'rider';
+          : 'passenger';
       console.log('[ProfileScreen] normalizedRole — ctx:', ctxRole, 'raw:', rawRole, 'resolved:', normalizedRole);
       const data: ApiProfile = {
         ...raw,
@@ -986,9 +986,9 @@ export default function ProfileScreen() {
   useEffect(() => {
     if (ctxProfile && profile) {
       const ctxRole = (ctxProfile.role ?? ctxProfile.user_type ?? '').toLowerCase();
-      if ((ctxRole === 'driver' || ctxRole === 'rider') && profile.role !== ctxRole) {
+      if ((ctxRole === 'driver' || ctxRole === 'passenger') && profile.role !== ctxRole) {
         console.log('[ProfileScreen] Syncing role from ctxProfile:', ctxRole);
-        setProfile(prev => prev ? { ...prev, role: ctxRole as 'driver' | 'rider', user_type: ctxRole as 'driver' | 'rider' } : prev);
+        setProfile(prev => prev ? { ...prev, role: ctxRole as 'driver' | 'passenger', user_type: ctxRole as 'driver' | 'passenger' } : prev);
       }
     }
   }, [ctxProfile]);

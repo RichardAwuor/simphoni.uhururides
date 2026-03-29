@@ -132,7 +132,7 @@ export default function AuthScreen() {
 
   const country = params.country ?? null;
   const language = params.language ?? null;
-  const userType = (params.userType as 'driver' | 'rider') ?? null;
+  const userType = (params.userType as 'driver' | 'passenger') ?? null;
 
   const { t } = useTranslation(language);
 
@@ -164,10 +164,10 @@ export default function AuthScreen() {
   }, []);
 
   const isDriver = userType === 'driver';
-  const isRider = userType === 'rider';
+  const isPassenger = userType === 'passenger';
 
-  const userTypeLabel = isDriver ? t('driver') : isRider ? t('rider') : null;
-  const userTypeDesc = isDriver ? t('iGiveRides') : isRider ? t('iNeedRides') : null;
+  const userTypeLabel = isDriver ? t('driver') : isPassenger ? t('passenger') : null;
+  const userTypeDesc = isDriver ? t('iGiveRides') : isPassenger ? t('iNeedRides') : null;
 
   const validateEmail = () => {
     if (!email) { setEmailError('Email is required'); return false; }
@@ -203,7 +203,7 @@ export default function AuthScreen() {
     const lastName = nameParts.slice(1).join(' ') || firstName;
 
     const basePayload: Record<string, any> = {
-      user_type: userType ?? 'rider',
+      user_type: userType ?? 'passenger',
       first_name: firstName,
       last_name: lastName,
       mobile_number: phone.trim(),

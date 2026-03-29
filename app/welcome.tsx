@@ -19,7 +19,7 @@ import { useTranslation } from '@/hooks/useTranslation';
 
 const LOGO = require('../assets/images/98f09b5e-58e7-47eb-94a3-11af3165b0a3.png');
 
-type UserType = 'driver' | 'rider';
+type UserType = 'driver' | 'passenger';
 
 const COUNTRIES = [
   { key: 'Kenya', label: 'Kenya', flag: '🇰🇪' },
@@ -183,7 +183,7 @@ export default function WelcomeScreen() {
   const languageDisplayLabel = selectedLanguageObj ? selectedLanguageObj.label : t('selectLanguage');
 
   const driverSelected = userType === 'driver';
-  const riderSelected = userType === 'rider';
+  const riderSelected = userType === 'passenger';
 
   const driverIconColor = driverSelected ? COLORS.text : COLORS.primary;
   const riderIconColor = riderSelected ? COLORS.text : COLORS.primary;
@@ -470,8 +470,8 @@ export default function WelcomeScreen() {
             {/* Rider Card */}
             <AnimatedPressable
               onPress={() => {
-                console.log('[Welcome] User type selected: rider');
-                setUserType('rider');
+                console.log('[Welcome] User type selected: passenger');
+                setUserType('passenger');
               }}
               style={{
                 flex: 1,

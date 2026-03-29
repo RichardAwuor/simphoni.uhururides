@@ -2,7 +2,7 @@ import { pgTable, text, timestamp, boolean, integer, real, pgEnum } from 'drizzl
 import { user } from './auth-schema.js';
 
 // Enums
-export const userTypeEnum = pgEnum('user_type', ['driver', 'rider']);
+export const userTypeEnum = pgEnum('user_type', ['driver', 'passenger', 'rider']);
 export const countryEnum = pgEnum('country', ['kenya', 'tanzania', 'uganda']);
 export const languageEnum = pgEnum('language', ['english', 'swahili', 'luganda']);
 export const carMakeEnum = pgEnum('car_make', ['Toyota', 'Nissan', 'Ford', 'Mercedes', 'Volkswagen', 'Others']);

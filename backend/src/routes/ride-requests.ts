@@ -230,6 +230,92 @@ async function formatRideRequest(app: App, row: any): Promise<any> {
 export function register(app: App, fastify: FastifyInstance) {
   const requireAuth = app.requireAuth();
 
+  // GET /api/ride-requests - Get ride requests with optional role and status filtering
+  fastify.get('/api/ride-requests', {
+    schema: {
+      description: 'Get ride requests with optional role and status filtering',
+      tags: ['ride-requests'],
+      querystring: {
+        type: 'object',
+        properties: {
+          role: { type: 'string', enum: ['driver', 'passenger'], description: 'Filter by role' },
+          status: { type: 'string', description: 'Filter by status' },
+        },
+      },
+      response: {
+        200: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              id: { type: 'string' },
+              rider_id: { type: 'string' },
+              rider_name: { type: ['string', 'null'] },
+              pickup_location: { type: 'string' },
+              destination: { type: 'string' },
+              price_offer: { type: 'number' },
+              bargain_price: { type: ['number', 'null'] },
+              currency: { type: 'string' },
+              status: { type: 'string' },
+              created_at: { type: 'string', format: 'date-time' },
+            },
+          },
+        },
+        401: { type: 'object', properties: { error: { type: 'string' } } },
+      },
+    },
+  }, async (request: FastifyRequest<{ Querystring: { role?: string; status?: string } }>, reply: FastifyReply) => {
+    const session = await requireAuth(request, reply);
+    if (!session) return;
+
+    const { role, status } = request.query;
+    const userId = session.user.id;
+
+    app.logger.info({ userId, role, status }, 'Fetching ride requests');
+
+    try {
+      let rides;
+
+      // If role=driver OR status=pending: return all pending ride requests
+      if (role === 'driver' || status === 'pending') {
+        rides = await app.db.query.ride_requests.findMany({
+          where: eq(schema.ride_requests.status, 'pending'),
+          orderBy: (rr, { desc }) => desc(rr.created_at),
+        });
+      } else {
+        // For passengers or no role: return only authenticated user's ride requests
+        rides = await app.db.query.ride_requests.findMany({
+          where: eq(schema.ride_requests.rider_id, userId),
+          orderBy: (rr, { desc }) => desc(rr.created_at),
+        });
+
+        // If status param is provided (and role is not driver), filter by that status additionally
+        if (status) {
+          rides = rides.filter(r => r.status === status);
+        }
+      }
+
+      const result = rides.map(r => ({
+        id: r.id,
+        rider_id: r.rider_id,
+        rider_name: r.rider_name,
+        pickup_location: r.pickup_location,
+        destination: r.destination,
+        price_offer: r.price_offer,
+        bargain_price: r.bargain_price,
+        currency: r.currency,
+        status: r.status,
+        created_at: r.created_at,
+      }));
+
+      app.logger.info({ userId, count: result.length }, 'Ride requests fetched successfully');
+      return result;
+    } catch (error) {
+      app.logger.error({ err: error, userId, role, status }, 'Failed to fetch ride requests');
+      throw error;
+    }
+  });
+
   // POST /api/ride-requests - Create a ride request
   fastify.post('/api/ride-requests', {
     schema: {
@@ -699,10 +785,10 @@ export function register(app: App, fastify: FastifyInstance) {
     }
   });
 
-  // POST /api/ride-requests/:id/bargain - Driver proposes bargain
+  // POST /api/ride-requests/:id/bargain - Driver proposes bargain with specific price
   fastify.post('/api/ride-requests/:id/bargain', {
     schema: {
-      description: 'Driver proposes a bargain',
+      description: 'Driver proposes a bargain with specific price',
       tags: ['ride-requests'],
       params: {
         type: 'object',
@@ -713,16 +799,17 @@ export function register(app: App, fastify: FastifyInstance) {
       },
       body: {
         type: 'object',
-        required: ['bargain_percent'],
+        required: ['bargain_price'],
         properties: {
-          bargain_percent: { type: 'integer', enum: [10, 25, 50] },
+          bargain_price: { type: 'number' },
         },
       },
       response: {
         200: {
           type: 'object',
           properties: {
-            success: { type: 'boolean' },
+            id: { type: 'string' },
+            status: { type: 'string' },
             bargain_price: { type: 'number' },
           },
         },
@@ -732,23 +819,17 @@ export function register(app: App, fastify: FastifyInstance) {
         401: { type: 'object', properties: { error: { type: 'string' } } },
       },
     },
-  }, async (request: FastifyRequest<{ Params: { id: string }; Body: { bargain_percent: number } }>, reply: FastifyReply) => {
+  }, async (request: FastifyRequest<{ Params: { id: string }; Body: { bargain_price: number } }>, reply: FastifyReply) => {
     const session = await requireAuth(request, reply);
     if (!session) return;
 
     const userId = session.user.id;
     const { id } = request.params;
-    const { bargain_percent } = request.body;
+    const { bargain_price } = request.body;
 
-    app.logger.info({ userId, rideId: id, bargainPercent: bargain_percent }, 'Driver proposing bargain');
+    app.logger.info({ userId, rideId: id, bargainPrice: bargain_price }, 'Driver proposing bargain');
 
     try {
-      // Validate bargain_percent
-      if (![10, 25, 50].includes(bargain_percent)) {
-        app.logger.warn({ bargainPercent: bargain_percent }, 'Invalid bargain percent');
-        return reply.status(400).send({ error: 'bargain_percent must be 10, 25, or 50' });
-      }
-
       // Get ride request
       const ride = await app.db.query.ride_requests.findFirst({
         where: eq(schema.ride_requests.id, id),
@@ -759,56 +840,94 @@ export function register(app: App, fastify: FastifyInstance) {
         return reply.status(404).send({ error: 'Ride request not found' });
       }
 
-      // Verify driver_id matches or is unassigned (null)
-      if (ride.driver_id && ride.driver_id !== userId) {
-        app.logger.warn({ rideId: id, userId, assignedDriver: ride.driver_id }, 'Driver not assigned to this ride');
-        return reply.status(403).send({ error: 'Not assigned to this ride' });
-      }
-
-      // Verify status is 'pending'
-      if (ride.status !== 'pending') {
-        app.logger.warn({ rideId: id, status: ride.status }, 'Ride not in pending status');
-        return reply.status(400).send({ error: 'Ride is not in pending status' });
-      }
-
-      // Assign driver if not already assigned
-      if (!ride.driver_id) {
-        await app.db.update(schema.ride_requests)
-          .set({ driver_id: userId })
-          .where(eq(schema.ride_requests.id, id));
-      }
-
-      // Calculate bargain price: price_offer * (1 + bargain_percent / 100)
-      const bargainPrice = ride.price_offer * (1 + bargain_percent / 100);
-
-      // Update ride: status='bargaining', bargain_price, bargain_percent
-      await app.db.update(schema.ride_requests)
+      // Set ride_request status, bargain_price, driver_id and updated_at
+      const [updated] = await app.db.update(schema.ride_requests)
         .set({
           status: 'bargaining',
-          bargain_price: bargainPrice,
-          bargain_percent,
+          bargain_price: bargain_price,
+          driver_id: userId,
           updated_at: new Date(),
         })
-        .where(eq(schema.ride_requests.id, id));
+        .where(eq(schema.ride_requests.id, id))
+        .returning();
 
-      // Insert attempt record
+      // Insert into ride_request_attempts
       await app.db.insert(schema.ride_request_attempts).values({
         id: createId(),
         ride_request_id: id,
         driver_id: userId,
         action: 'bargained',
-        bargain_percent,
-        bargain_price: bargainPrice,
+        bargain_price: bargain_price,
       });
 
-      app.logger.info({ rideId: id, bargainPrice }, 'Bargain proposed successfully');
+      app.logger.info({ rideId: id, bargainPrice: bargain_price }, 'Bargain proposed successfully');
 
       return {
-        success: true,
-        bargain_price: bargainPrice,
+        id: updated.id,
+        status: updated.status,
+        bargain_price: updated.bargain_price,
       };
     } catch (error) {
       app.logger.error({ err: error, userId, rideId: id }, 'Failed to propose bargain');
+      throw error;
+    }
+  });
+
+  // POST /api/ride-requests/:id/ignore - Driver ignores a ride request
+  fastify.post('/api/ride-requests/:id/ignore', {
+    schema: {
+      description: 'Driver ignores a ride request (soft-hide)',
+      tags: ['ride-requests'],
+      params: {
+        type: 'object',
+        required: ['id'],
+        properties: {
+          id: { type: 'string', pattern: '^([a-z0-9]+|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$' },
+        },
+      },
+      response: {
+        200: {
+          type: 'object',
+          properties: {
+            success: { type: 'boolean' },
+          },
+        },
+        404: { type: 'object', properties: { error: { type: 'string' } } },
+        401: { type: 'object', properties: { error: { type: 'string' } } },
+      },
+    },
+  }, async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
+    const session = await requireAuth(request, reply);
+    if (!session) return;
+
+    const userId = session.user.id;
+    const { id } = request.params;
+
+    app.logger.info({ userId, rideId: id }, 'Driver ignoring ride');
+
+    try {
+      // Get ride request
+      const ride = await app.db.query.ride_requests.findFirst({
+        where: eq(schema.ride_requests.id, id),
+      });
+
+      if (!ride) {
+        app.logger.warn({ rideId: id }, 'Ride request not found');
+        return reply.status(404).send({ error: 'Ride request not found' });
+      }
+
+      // Insert into driver_ride_actions with action='ignored'
+      await app.db.insert(schema.driver_ride_actions).values({
+        id: createId(),
+        ride_request_id: id,
+        driver_id: userId,
+        action: 'ignored',
+      });
+
+      app.logger.info({ rideId: id }, 'Ride ignored successfully');
+      return { success: true };
+    } catch (error) {
+      app.logger.error({ err: error, userId, rideId: id }, 'Failed to ignore ride');
       throw error;
     }
   });
@@ -1175,7 +1294,46 @@ export function register(app: App, fastify: FastifyInstance) {
     }
   });
 
-  // GET /api/driver/mute - Get driver mute status
+  // GET /api/driver/mute-status - Get driver mute status
+  fastify.get('/api/driver/mute-status', {
+    schema: {
+      description: 'Get driver mute status',
+      tags: ['driver'],
+      response: {
+        200: {
+          type: 'object',
+          properties: {
+            muted: { type: 'boolean' },
+          },
+        },
+        401: { type: 'object', properties: { error: { type: 'string' } } },
+      },
+    },
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const session = await requireAuth(request, reply);
+    if (!session) return;
+
+    const userId = session.user.id;
+
+    app.logger.info({ userId }, 'Fetching driver mute status');
+
+    try {
+      const profile = await app.db.query.profiles.findFirst({
+        where: eq(schema.profiles.user_id, userId),
+      });
+
+      const muted = profile?.muted ?? false;
+
+      app.logger.debug({ userId, muted }, 'Driver mute status retrieved');
+
+      return { muted };
+    } catch (error) {
+      app.logger.error({ err: error, userId }, 'Failed to fetch mute status');
+      throw error;
+    }
+  });
+
+  // GET /api/driver/mute - Get driver mute status (alias)
   fastify.get('/api/driver/mute', {
     schema: {
       description: 'Get driver mute status',

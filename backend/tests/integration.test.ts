@@ -231,19 +231,37 @@ describe("API Integration Tests", () => {
 
   // Ride Statistics endpoint
   describe("Ride Statistics", () => {
-    test("Get ride stats", async () => {
-      const res = await authenticatedApi("/api/ride-stats", authToken);
+    test("Get ride stats for driver role", async () => {
+      const res = await authenticatedApi("/api/ride-stats?role=driver", authToken);
       await expectStatus(res, 200);
       const data = await res.json();
       expect(data.total_rides).toBeDefined();
-      expect(data.completed_rides).toBeDefined();
-      expect(data.cancelled_rides).toBeDefined();
       expect(data.total_earnings).toBeDefined();
-      expect(data.rating).toBeDefined();
+      expect(data.total_distance_km).toBeDefined();
+    });
+
+    test("Get ride stats for passenger role", async () => {
+      const res = await authenticatedApi("/api/ride-stats?role=passenger", authToken);
+      await expectStatus(res, 200);
+      const data = await res.json();
+      expect(data.total_rides).toBeDefined();
+      expect(data.total_earnings).toBeDefined();
+    });
+
+    test("Get ride stats with date range", async () => {
+      const res = await authenticatedApi("/api/ride-stats?role=driver&from=2026-03-01&to=2026-03-31", authToken);
+      await expectStatus(res, 200);
+      const data = await res.json();
+      expect(data.total_rides).toBeDefined();
+    });
+
+    test("Get ride stats without required role parameter should fail", async () => {
+      const res = await authenticatedApi("/api/ride-stats", authToken);
+      await expectStatus(res, 400);
     });
 
     test("Get ride stats without auth should return 401", async () => {
-      const res = await api("/api/ride-stats");
+      const res = await api("/api/ride-stats?role=driver");
       await expectStatus(res, 401);
     });
   });
@@ -494,6 +512,27 @@ describe("API Integration Tests", () => {
       expect(riderToken).toBeDefined();
     });
 
+    test("Get ride requests list", async () => {
+      const res = await authenticatedApi("/api/ride-requests", authToken);
+      await expectStatus(res, 200);
+      const data = await res.json();
+      expect(Array.isArray(data)).toBe(true);
+    });
+
+    test("Get ride requests with role filter", async () => {
+      const res = await authenticatedApi("/api/ride-requests?role=driver", authToken);
+      await expectStatus(res, 200);
+      const data = await res.json();
+      expect(Array.isArray(data)).toBe(true);
+    });
+
+    test("Get ride requests with role and status filter", async () => {
+      const res = await authenticatedApi("/api/ride-requests?role=driver&status=pending", authToken);
+      await expectStatus(res, 200);
+      const data = await res.json();
+      expect(Array.isArray(data)).toBe(true);
+    });
+
     test("Create ride request", async () => {
       const res = await authenticatedApi("/api/ride-requests", riderToken, {
         method: "POST",
@@ -583,21 +622,21 @@ describe("API Integration Tests", () => {
       rideRequestId = data.id;
     });
 
-    test("Send bargain offer with 10% discount", async () => {
+    test("Send bargain offer with specific price", async () => {
       const res = await authenticatedApi(`/api/ride-requests/${rideRequestId}/bargain`, authToken, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          bargain_percent: 10,
+          bargain_price: 700,
         }),
       });
       await expectStatus(res, 200);
       const data = await res.json();
-      expect(data.success).toBe(true);
-      expect(data.bargain_price).toBeDefined();
+      expect(data.id).toBeDefined();
+      expect(data.bargain_price).toBe(700);
     });
 
-    test("Send bargain with 25% discount", async () => {
+    test("Send bargain with another price point", async () => {
       const res2 = await authenticatedApi("/api/ride-requests", riderToken, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -620,15 +659,15 @@ describe("API Integration Tests", () => {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          bargain_percent: 25,
+          bargain_price: 500,
         }),
       });
       await expectStatus(res, 200);
       const data = await res.json();
-      expect(data.bargain_price).toBeDefined();
+      expect(data.bargain_price).toBe(500);
     });
 
-    test("Send bargain with 50% discount", async () => {
+    test("Send bargain with lower price point", async () => {
       const res2 = await authenticatedApi("/api/ride-requests", riderToken, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -652,26 +691,15 @@ describe("API Integration Tests", () => {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          bargain_percent: 50,
+          bargain_price: 600,
         }),
       });
       await expectStatus(res, 200);
       const data = await res.json();
-      expect(data.bargain_price).toBeDefined();
+      expect(data.bargain_price).toBe(600);
     });
 
-    test("Send bargain with invalid percent should fail", async () => {
-      const res = await authenticatedApi(`/api/ride-requests/${rideRequestId}/bargain`, authToken, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          bargain_percent: 35, // not in [10, 25, 50]
-        }),
-      });
-      await expectStatus(res, 400);
-    });
-
-    test("Send bargain with missing percent should fail", async () => {
+    test("Send bargain with missing price should fail", async () => {
       const res = await authenticatedApi(`/api/ride-requests/${rideRequestId}/bargain`, authToken, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -685,7 +713,7 @@ describe("API Integration Tests", () => {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          bargain_percent: 10,
+          bargain_price: 500,
         }),
       });
       await expectStatus(res, 404);
@@ -696,7 +724,7 @@ describe("API Integration Tests", () => {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          bargain_percent: 10,
+          bargain_price: 500,
         }),
       });
       await expectStatus(res, 400);
@@ -738,7 +766,7 @@ describe("API Integration Tests", () => {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          bargain_percent: 10,
+          bargain_price: 600,
         }),
       });
       await expectStatus(bargainRes, 200);
@@ -901,6 +929,47 @@ describe("API Integration Tests", () => {
       await expectStatus(res, 400);
     });
 
+    test("Ignore ride request", async () => {
+      const res2 = await authenticatedApi("/api/ride-requests", riderToken, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          vehicle_type: "car",
+          pickup_location: "Riverside",
+          pickup_lat: -1.2760,
+          pickup_lng: 36.8100,
+          destination: "Karen",
+          destination_lat: -1.3139,
+          destination_lng: 36.7869,
+          distance_km: 8.0,
+          offered_price: 900,
+          currency: "KES",
+        }),
+      });
+      const ride = await res2.json();
+
+      const res = await authenticatedApi(`/api/ride-requests/${ride.id}/ignore`, authToken, {
+        method: "POST",
+      });
+      await expectStatus(res, 200);
+      const data = await res.json();
+      expect(data.success).toBe(true);
+    });
+
+    test("Ignore nonexistent request should return 404", async () => {
+      const res = await authenticatedApi("/api/ride-requests/00000000-0000-0000-0000-000000000000/ignore", authToken, {
+        method: "POST",
+      });
+      await expectStatus(res, 404);
+    });
+
+    test("Ignore ride request with invalid UUID format should return 400", async () => {
+      const res = await authenticatedApi("/api/ride-requests/invalid-uuid/ignore", authToken, {
+        method: "POST",
+      });
+      await expectStatus(res, 400);
+    });
+
     test("Create ride request with missing required fields should fail", async () => {
       const res = await authenticatedApi("/api/ride-requests", authToken, {
         method: "POST",
@@ -968,8 +1037,16 @@ describe("API Integration Tests", () => {
       muteTestToken = token;
     });
 
-    test("Get current mute status", async () => {
+    test("Get current mute status via /api/driver/mute", async () => {
       const res = await authenticatedApi("/api/driver/mute", muteTestToken);
+      await expectStatus(res, 200);
+      const data = await res.json();
+      expect(data.muted).toBeDefined();
+      expect(typeof data.muted).toBe("boolean");
+    });
+
+    test("Get current mute status via /api/driver/mute-status", async () => {
+      const res = await authenticatedApi("/api/driver/mute-status", muteTestToken);
       await expectStatus(res, 200);
       const data = await res.json();
       expect(data.muted).toBeDefined();
@@ -1026,6 +1103,11 @@ describe("API Integration Tests", () => {
       const res = await api("/api/driver/mute");
       await expectStatus(res, 401);
     });
+
+    test("Get mute-status without auth should return 401", async () => {
+      const res = await api("/api/driver/mute-status");
+      await expectStatus(res, 401);
+    });
   });
 
   // Unauthenticated access tests
@@ -1079,7 +1161,7 @@ describe("API Integration Tests", () => {
     });
 
     test("Get ride stats without auth should return 401", async () => {
-      const res = await api("/api/ride-stats");
+      const res = await api("/api/ride-stats?role=driver");
       await expectStatus(res, 401);
     });
   });

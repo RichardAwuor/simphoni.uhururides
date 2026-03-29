@@ -70,7 +70,7 @@ async function seed() {
     await app.db.insert(appSchema.profiles).values({
       id: riderProfileId,
       user_id: riderId,
-      user_type: 'rider',
+      user_type: 'passenger',
       first_name: 'Jane',
       last_name: 'Rider',
       resident_district: 'CBD',

@@ -10,6 +10,7 @@ import {
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@/contexts/AuthContext';
+import { useProfile } from '@/contexts/ProfileContext';
 import { apiGet } from '@/utils/api';
 import { COLORS } from '@/constants/colors';
 import { AnimatedPressable } from '@/components/AnimatedPressable';
@@ -931,6 +932,7 @@ function RiderProfile({ profile, authEmail }: { profile: ApiProfile; authEmail?:
 
 export default function ProfileScreen() {
   const { user } = useAuth();
+  const { profile: ctxProfile } = useProfile();
   const [profile, setProfile] = useState<ApiProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -945,8 +947,15 @@ export default function ProfileScreen() {
       const normalizedName: string = raw.full_name || raw.name ||
         ((raw.first_name || raw.last_name) ? `${raw.first_name || ''} ${raw.last_name || ''}`.trim() : '');
       const normalizedPhone: string = raw.phone || raw.mobile_number || raw.phone_number || '';
+      const ctxRole = (ctxProfile?.role ?? ctxProfile?.user_type ?? '').toLowerCase();
+      const rawRole = ((raw?.user_type ?? raw?.role ?? '') as string).toLowerCase();
       const normalizedRole: 'rider' | 'driver' =
-        ((raw.user_type ?? raw.role ?? '') as string).toLowerCase() === 'driver' ? 'driver' : 'rider';
+        ctxRole === 'driver' || ctxRole === 'rider'
+          ? (ctxRole as 'driver' | 'rider')
+          : rawRole === 'driver'
+          ? 'driver'
+          : 'rider';
+      console.log('[ProfileScreen] normalizedRole — ctx:', ctxRole, 'raw:', rawRole, 'resolved:', normalizedRole);
       const data: ApiProfile = {
         ...raw,
         full_name: normalizedName,
@@ -963,7 +972,7 @@ export default function ProfileScreen() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [ctxProfile]);
 
   useEffect(() => {
     if (user) {
@@ -971,7 +980,18 @@ export default function ProfileScreen() {
     } else {
       setLoading(false);
     }
-  }, [user]);
+  }, [user, ctxProfile]);
+
+  // Sync role from context whenever ctxProfile updates, without a full re-fetch
+  useEffect(() => {
+    if (ctxProfile && profile) {
+      const ctxRole = (ctxProfile.role ?? ctxProfile.user_type ?? '').toLowerCase();
+      if ((ctxRole === 'driver' || ctxRole === 'rider') && profile.role !== ctxRole) {
+        console.log('[ProfileScreen] Syncing role from ctxProfile:', ctxRole);
+        setProfile(prev => prev ? { ...prev, role: ctxRole as 'driver' | 'rider', user_type: ctxRole as 'driver' | 'rider' } : prev);
+      }
+    }
+  }, [ctxProfile]);
 
   if (loading) {
     return (

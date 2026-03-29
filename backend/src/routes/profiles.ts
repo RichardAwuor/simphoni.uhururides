@@ -22,8 +22,10 @@ interface UpsertProfileBody {
 function normalizeRole(roleValue: string | null | undefined): 'driver' | 'rider' | null {
   if (!roleValue) return null;
   const normalized = roleValue.toLowerCase();
-  if (normalized === 'driver') return 'driver';
-  if (normalized === 'rider') return 'rider';
+  // Match any variant containing 'driver' (e.g., 'DRIVER', 'driver_partner', 'Driver')
+  if (normalized.includes('driver')) return 'driver';
+  // Match any variant containing 'rider' (e.g., 'RIDER', 'Rider')
+  if (normalized.includes('rider')) return 'rider';
   return null;
 }
 
@@ -642,7 +644,7 @@ export function register(app: App, fastify: FastifyInstance) {
             full_name: { type: ['string', 'null'] },
             phone: { type: ['string', 'null'] },
             mobile_number: { type: ['string', 'null'] },
-            role: { type: ['string', 'null'] },
+            role: { type: 'string', description: 'Normalized role: either "driver" or "rider"' },
             resident_district: { type: ['string', 'null'] },
             country: { type: ['string', 'null'] },
             language: { type: ['string', 'null'] },
@@ -734,12 +736,17 @@ export function register(app: App, fastify: FastifyInstance) {
         app.logger.info({ userId, profileId }, 'Profile auto-created successfully');
       }
 
-      // Compute normalized role: check role column first, fall back to user_type
-      const normalizedRole = profile.role
-        ? normalizeRole(profile.role)
-        : normalizeRole(profile.user_type);
+      // Compute normalized role: prefer user_type (authoritative), fallback to role, default to 'rider'
+      let normalizedRole = normalizeRole(profile.user_type);
+      if (!normalizedRole) {
+        normalizedRole = normalizeRole(profile.role);
+      }
+      // Ensure role is always 'driver' or 'rider', never null
+      if (!normalizedRole) {
+        normalizedRole = 'rider';
+      }
 
-      app.logger.info({ userId, profileId: profile.id }, 'User profile retrieved successfully');
+      app.logger.info({ userId, profileId: profile.id, role: normalizedRole }, 'User profile retrieved successfully');
       return reply.status(200).send({
         ...profile,
         role: normalizedRole,
